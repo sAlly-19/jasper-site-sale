@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Jasper Avatar Platform",
+    "slug": "jasper-avatar-platform",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "jasperavatar",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
+

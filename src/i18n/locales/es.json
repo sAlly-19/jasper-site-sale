@@ -1,0 +1,91 @@
+{
+  "nav": {
+    "features": "Características",
+    "autonomy": "17 Módulos",
+    "demo": "Demostración",
+    "pricing": "Precio Vitalicio",
+    "faq": "FAQ",
+    "admin": "Portal Dev"
+  },
+  "hero": {
+    "badge": "NUEVA ERA DE IA • 2026",
+    "title": "El Primer Asistente 3D Holográfico con Autonomía Real para tu Desktop",
+    "subtitle": "Conversa por voz natural en tiempo real con Gemini Multimodal Live, comparte tu pantalla al instante y permite que Jasper ejecute 17 módulos de automatización en Windows sin suscripciones.",
+    "ctaPrimary": "Obtener Acceso Vitalicio",
+    "ctaSecondary": "Explorar Módulos 3D",
+    "stat1Value": "60 FPS",
+    "stat1Label": "Three.js Lip Sync",
+    "stat2Value": "< 120ms",
+    "stat2Label": "Voz Bidireccional",
+    "stat3Value": "17",
+    "stat3Label": "Módulos Autónomos",
+    "stat4Value": "100%",
+    "stat4Label": "Zero-Trust Local"
+  },
+  "modules": {
+    "badge": "ARQUITECTURA DE SISTEMA",
+    "title": "17 Servicios Autónomos en Segundo Plano",
+    "subtitle": "Jasper no es un simple chatbot: es una estación de comando que monitoriza, protege y ejecuta tareas reales en tu ordenador.",
+    "m1Title": "Visión de Pantalla en Tiempo Real",
+    "m1Desc": "Transmisión continua de frames via desktopCapturer para analizar código, gráficos y ventanas al instante.",
+    "m2Title": "Code Interpreter Sandboxed",
+    "m2Desc": "Ejecución aislada de scripts Python y Node.js blindada contra llamadas peligrosas y directory traversal.",
+    "m3Title": "Clipboard Watcher & Redacción",
+    "m3Desc": "Monitoriza el portapapeles y censura automáticamente claves de API, contraseñas y tokens Bearer.",
+    "m4Title": "Git Watcher & Reflexion Guard",
+    "m4Desc": "Monitorea commits, sugiere mensajes semánticos y previene fugas de credenciales con autorreflexión.",
+    "m5Title": "Smart Home & Webhooks n8n",
+    "m5Desc": "Controla luces y climatización via Home Assistant o dispara flujos en n8n con protección SSRF."
+  },
+  "pricing": {
+    "badge": "OFERTA EXCLUSIVA DE LANZAMIENTO",
+    "title": "Acceso Vitalicio • Sin Suscripciones",
+    "subtitle": "Paga una sola vez y obtén tu clave de licencia definitiva de Jasper Desktop para siempre, incluyendo todas las futuras actualizaciones.",
+    "tag": "ACCESO VITALICIO",
+    "highlight": "AHORRA MÁS DEL 50% HOY",
+    "cta": "Comprar Ahora con Acceso Vitalicio",
+    "guarantee": "Garantía incondicional de 7 días o devolución de tu dinero",
+    "benefits": [
+      "Licencia Vitalicia con clave exclusiva cifrada",
+      "Avatar 3D con Three.js y Lip Sync síncrono",
+      "Integración directa con Google Gemini Multimodal Live API",
+      "Los 17 módulos de autonomía activados",
+      "Soporte para el futuro Companion Mobile",
+      "Actualizaciones de seguridad y nuevas funciones incluidas",
+      "Zero-Trust: Tus datos nunca salen de tu máquina"
+    ]
+  },
+  "faq": {
+    "badge": "PREGUNTAS FRECUENTES",
+    "title": "Todo lo que necesitas saber",
+    "q1": "¿Cómo funciona el Acceso Vitalicio?",
+    "a1": "Realizas un pago único e inmediatamente recibes una Clave de Licencia (API Key). Activa Jasper Desktop en tu equipo para siempre, sin tarifas mensuales.",
+    "q2": "¿Debo pagar por la API de Gemini?",
+    "a2": "¡No! Jasper se conecta a tu clave de Google AI Studio, que ofrece cuotas gratuitas generosas para uso personal diario.",
+    "q3": "¿Es seguro ejecutarlo en mi sistema operativo?",
+    "a3": "Sí. Jasper fue diseñado bajo estrictos principios Zero-Trust, con sandbox seguro, bloqueo SSRF y redacción inmediata en el portapapeles."
+  },
+  "admin": {
+    "loginTitle": "Portal del Desarrollador",
+    "loginSubtitle": "Acceso administrativo para licencias y CMS",
+    "emailLabel": "Correo del Administrador",
+    "passLabel": "Contraseña",
+    "loginBtn": "Ingresar al Panel",
+    "logoutBtn": "Cerrar Sesión",
+    "licensesTab": "Gestión de API Keys",
+    "cmsTab": "CMS de Landing Page",
+    "metricsTab": "Visión General",
+    "createKeyTitle": "Generar Nueva Clave de Cliente",
+    "clientName": "Nombre del Cliente",
+    "clientEmail": "Correo del Cliente",
+    "clientWhatsApp": "WhatsApp con código de país (+...)",
+    "generateBtn": "Generar Clave de Acceso",
+    "revokeBtn": "Revocar Clave",
+    "activateBtn": "Reactivar",
+    "copyKey": "Copiar Clave",
+    "statusActive": "ACTIVO",
+    "statusRevoked": "REVOCADO",
+    "searchPlaceholder": "Buscar por nombre, correo o clave..."
+  }
+}
+

@@ -1,0 +1,30 @@
+import React from "react";
+import { View, StyleSheet, Platform } from "react-native";
+import { Slot } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { theme } from "@/config/theme";
+
+export default function RootLayout() {
+  return (
+    <SafeAreaProvider style={Platform.OS === "web" ? styles.webContainer : undefined}>
+      <View style={Platform.OS === "web" ? styles.webContainer : styles.container}>
+        <StatusBar style="light" />
+        <Slot />
+      </View>
+    </SafeAreaProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  webContainer: {
+    flex: 1,
+    minHeight: "100%",
+    backgroundColor: theme.colors.background,
+    ...(Platform.OS === "web" ? ({ overflow: "visible" } as any) : {}),
+  },
+});
