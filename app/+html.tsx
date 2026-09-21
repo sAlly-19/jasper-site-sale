@@ -20,30 +20,7 @@ export default function Root({ children }: PropsWithChildren) {
           rel="stylesheet"
         />
 
-        {/* Tailwind CSS Play CDN for instant zero-config Tailwind utility rendering on Expo Web */}
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script dangerouslySetInnerHTML={{ __html: `
-          tailwind.config = {
-            theme: {
-              extend: {
-                colors: {
-                  void: '#04060c',
-                  abyss: '#070b14',
-                  panel: '#0b1220',
-                  neon: '#3ff2ff',
-                  lime: '#c8ff4d',
-                  mist: '#8ea3bc',
-                  frost: '#eaf3fa',
-                },
-                fontFamily: {
-                  display: ['Unbounded', 'system-ui', 'sans-serif'],
-                  body: ['Space Grotesk', 'system-ui', 'sans-serif'],
-                  mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
-                }
-              }
-            }
-          }
-        `}} />
+
 
         <style dangerouslySetInnerHTML={{ __html: `
           :root {

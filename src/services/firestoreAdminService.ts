@@ -221,7 +221,7 @@ export async function createKey(data: {
     name: data.name.trim(),
     email: data.email.trim().toLowerCase(),
     whatsapp: data.whatsapp.trim(),
-    key: generated.replace("JSPR-V1", "JASPER-LT"),
+    key: generated,
     status: "active",
     notes: data.notes?.trim() || "",
     createdAt: new Date().toISOString(),
@@ -489,26 +489,5 @@ export async function deletePromo(id: string): Promise<void> {
   localPromos = localPromos.filter((p) => p.id !== id);
 }
 
-/* ------------------------------------------------------------------ */
-/*  Admin Auth Helper                                                  */
-/* ------------------------------------------------------------------ */
 
-export function checkAdminSession(): { authed: boolean; username: string } {
-  if (typeof window === "undefined") return { authed: false, username: "" };
-  const authed = window.sessionStorage.getItem("jasper_admin_authed") === "true";
-  const username = window.sessionStorage.getItem("jasper_admin_username") || "admin";
-  return { authed, username };
-}
-
-export function setAdminSession(username: string): void {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.setItem("jasper_admin_authed", "true");
-  window.sessionStorage.setItem("jasper_admin_username", username);
-}
-
-export function clearAdminSession(): void {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem("jasper_admin_authed");
-  window.sessionStorage.removeItem("jasper_admin_username");
-}
 

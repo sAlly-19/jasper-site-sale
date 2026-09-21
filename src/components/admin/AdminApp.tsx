@@ -4,11 +4,6 @@ import React, { useCallback, useEffect, useState, type ReactNode } from "react";
 import { KeysPanel } from "./KeysPanel";
 import { PromosPanel } from "./PromosPanel";
 import { CmsPanel } from "./CmsPanel";
-import {
-  checkAdminSession,
-  setAdminSession,
-  clearAdminSession,
-} from "@/services/firestoreAdminService";
 import { loginAdmin, logoutAdmin, subscribeToAuthState } from "@/services/firebaseAuthService";
 
 type Tab = "keys" | "promos" | "cms";
@@ -156,30 +151,17 @@ export function AdminApp() {
     }
   }, []);
 
-  // Monitora a sessão ativa do Firebase Auth
+  // Monitora a sessão ativa do Firebase Auth (100% token JWT verificado)
   useEffect(() => {
     const unsub = subscribeToAuthState((admin) => {
       if (admin) {
         setAuthed(true);
-        const name = admin.email || admin.displayName || "Admin";
-        setUsername(name);
-        setAdminSession(name);
+        setUsername(admin.email || admin.displayName || "Admin");
       } else {
-        const session = checkAdminSession();
-        if (!session.authed) {
-          setAuthed(false);
-          setUsername("");
-        }
+        setAuthed(false);
+        setUsername("");
       }
     });
-
-    const session = checkAdminSession();
-    if (session.authed) {
-      setAuthed(true);
-      setUsername(session.username);
-    } else {
-      setAuthed(false);
-    }
 
     return () => unsub();
   }, []);
@@ -190,7 +172,6 @@ export function AdminApp() {
     try {
       const admin = await loginAdmin(email, pass);
       const name = admin.email || admin.displayName || "Admin";
-      setAdminSession(name);
       setUsername(name);
       setAuthed(true);
       notify("Console desbloqueado via Firebase Auth", "ok");
@@ -207,7 +188,6 @@ export function AdminApp() {
     } catch {
       // Ignora erro de logout remoto
     }
-    clearAdminSession();
     setAuthed(false);
     setUsername("");
   }, []);

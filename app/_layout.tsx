@@ -4,6 +4,7 @@ import { Slot } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { theme } from "@/config/theme";
+import "@/styles/compiled.css";
 
 export default function RootLayout() {
   return (
