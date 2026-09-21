@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   fetchKeys,
-  createKey,
+  createKeysBatch,
   updateKey,
   setKeyStatus,
   deleteKey,
@@ -37,14 +37,15 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
   const [keys, setKeys] = useState<KeyRow[] | null>(null);
   const [search, setSearch] = useState("");
 
-  // Formulário de Criação
+  // Formulário de Criação (com suporte a Lote / Múltiplas Chaves por Cliente)
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [notes, setNotes] = useState("");
+  const [quantity, setQuantity] = useState(1);
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState("");
-  const [newKey, setNewKey] = useState<KeyRow | null>(null);
+  const [generatedBatch, setGeneratedBatch] = useState<KeyRow[] | null>(null);
 
   // Modal de Edição
   const [editingKey, setEditingKey] = useState<KeyRow | null>(null);
@@ -75,7 +76,7 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
     load();
   }, [load]);
 
-  /* Criação de nova chave */
+  /* Criação de chaves (única ou em lote para o mesmo cliente) */
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
@@ -84,6 +85,7 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
     const cleanName = name.trim();
     const cleanEmail = email.trim();
     const cleanPhone = whatsapp.replace(/\D/g, "");
+    const qty = Math.max(1, Math.min(50, quantity));
 
     if (!cleanName) {
       setFormError(ERR.name_required);
@@ -102,24 +104,44 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
     }
 
     try {
-      const generated = await createKey({
+      const batch = await createKeysBatch({
         name: cleanName,
         email: cleanEmail,
         whatsapp: whatsapp.trim(),
         notes: notes.trim(),
+        quantity: qty,
       });
-      setNewKey(generated);
-      setKeys((k) => [generated, ...(k || [])]);
+
+      setGeneratedBatch(batch);
+      setKeys((k) => [...batch, ...(k || [])]);
       setName("");
       setEmail("");
       setWhatsapp("");
       setNotes("");
-      notify("Chave de acesso gerada com sucesso!");
+      setQuantity(1);
+      notify(
+        qty > 1
+          ? `Sucesso! ${qty} chaves emitidas para ${cleanName}.`
+          : "Chave de acesso gerada com sucesso!"
+      );
     } catch {
-      setFormError("Erro ao gravar chave no Firestore — verifique as permissões.");
+      setFormError("Erro ao gravar chaves no Firestore — verifique as permissões.");
     } finally {
       setBusy(false);
     }
+  };
+
+  /* Pré-preencher gerador para emitir chave adicional a um cliente existente */
+  const quickAddForClient = (client: KeyRow) => {
+    setName(client.name);
+    setEmail(client.email);
+    setWhatsapp(client.whatsapp);
+    setQuantity(1);
+    setNotes("Chave adicional para nova máquina");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    notify(`Dados de ${client.name} preenchidos no gerador.`);
   };
 
   /* Abertura do Modal de Edição */
@@ -210,8 +232,25 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
     }
   };
 
-  // Filtragem e Métricas
+  /* Copiar lote inteiro formatado */
+  const copyBatchAll = (batch: KeyRow[]) => {
+    const text = batch
+      .map((k, i) => `${i + 1}. ${k.key} (${k.notes || "Máquina"})`)
+      .join("\n");
+    copy(text);
+  };
+
+  // Agrupamento e Métricas por Cliente
   const allKeys = keys || [];
+  const clientKeysMap: Record<string, KeyRow[]> = {};
+  allKeys.forEach((k) => {
+    const em = k.email.toLowerCase();
+    if (!clientKeysMap[em]) clientKeysMap[em] = [];
+    clientKeysMap[em].push(k);
+  });
+
+  const uniqueClientsCount = Object.keys(clientKeysMap).length;
+
   const filteredKeys = allKeys.filter((k) => {
     const q = search.toLowerCase();
     return (
@@ -229,12 +268,18 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
 
   return (
     <div className="space-y-6">
-      {/* ---------------- FORMULÁRIO DE GERAÇÃO ---------------- */}
+      {/* ---------------- FORMULÁRIO DE GERAÇÃO EM LOTE ---------------- */}
       <form onSubmit={create} className="glass-deep hud-frame rounded-2xl p-6 border border-white/8">
-        <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-neon mb-5">
-          + Emitir Nova Chave de Acesso Vitalícia (Node-Locked)
-        </p>
-        <div className="grid md:grid-cols-4 gap-4">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
+          <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-neon">
+            + Emitir Chaves de Acesso Vitalícias (1 ou Múltiplas Máquinas por Cliente)
+          </p>
+          <span className="font-mono text-[10px] text-mist/70">
+            Node-Locked: cada chave ativará 1 máquina com Jasper Desktop
+          </span>
+        </div>
+
+        <div className="grid md:grid-cols-5 gap-4">
           <div>
             <label className="lbl">Nome do Cliente</label>
             <input
@@ -245,6 +290,7 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
               required
             />
           </div>
+
           <div>
             <label className="lbl">E-mail</label>
             <input
@@ -256,6 +302,7 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
               required
             />
           </div>
+
           <div>
             <label className="lbl">WhatsApp</label>
             <input
@@ -266,13 +313,45 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
               required
             />
           </div>
+
           <div>
-            <label className="lbl">Observações (Opcional)</label>
+            <label className="lbl">Qtd. de Máquinas</label>
+            <div className="flex items-center gap-1">
+              <input
+                className="field text-center font-mono font-bold text-neon"
+                type="number"
+                min={1}
+                max={50}
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                required
+              />
+              <div className="flex flex-col gap-0.5">
+                {[1, 2, 3, 5].map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => setQuantity(q)}
+                    className={`font-mono text-[9px] px-1.5 py-0.5 rounded border ${
+                      quantity === q
+                        ? "border-neon bg-neon/20 text-neon"
+                        : "border-white/10 text-mist hover:text-frost"
+                    }`}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="lbl">Observações / Notas</label>
             <input
               className="field"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ex: Pagamento Pix / Suporte VIP"
+              placeholder="Ex: Desktop + Laptop"
             />
           </div>
         </div>
@@ -289,50 +368,90 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
             disabled={busy}
             className="btn-neon rounded-xl px-6 py-3 text-[11px] tracking-[0.15em] disabled:opacity-60"
           >
-            {busy ? "EMITINDO CHAVE…" : "EMITIR CHAVE"}
+            {busy
+              ? "GERANDO CHAVES…"
+              : quantity > 1
+              ? `EMITIR ${quantity} CHAVES EM LOTE`
+              : "EMITIR 1 CHAVE"}
           </button>
           <span className="font-mono text-[10px] text-mist/70">
-            A chave gerada será vinculada exclusivamente à primeira máquina (HWID) em que o Jasper Desktop for aberto.
+            {quantity > 1
+              ? `Serão geradas ${quantity} chaves únicas para este cliente, permitindo equipar ${quantity} computadores diferentes.`
+              : "A chave gerada será vinculada exclusivamente à primeira máquina em que for ativada."}
           </span>
         </div>
       </form>
 
-      {/* ---------------- CHAVE RECÉM GERADA ---------------- */}
-      {newKey && (
+      {/* ---------------- RESULTADO DO LOTE RECÉM GERADO ---------------- */}
+      {generatedBatch && generatedBatch.length > 0 && (
         <div className="glass rounded-2xl border-lime/30 p-6 bg-lime/[0.03]">
-          <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-lime mb-3">
-            ✓ Chave Gerada com Sucesso — {newKey.name} · {newKey.email}
-          </p>
-          <div className="flex flex-wrap items-center gap-3">
-            <code className="font-mono text-base md:text-lg text-frost tracking-wider bg-void/80 border border-lime/40 rounded-lg px-4 py-3 select-all">
-              {newKey.key}
-            </code>
-            <button
-              onClick={() => copy(newKey.key)}
-              className="btn-ghost rounded-lg px-5 py-3 font-mono text-[11px] tracking-[0.2em] uppercase text-lime border-lime/30 hover:bg-lime/10"
-            >
-              Copiar Chave
-            </button>
-            <a
-              href={`https://wa.me/${newKey.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
-                `Olá ${newKey.name}! Aqui está sua chave de acesso vitalício para o Jasper Avatar: ${newKey.key}\nLembre-se: Esta chave é vinculada de forma única à sua máquina de uso.`
-              )}`}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-ghost rounded-lg px-5 py-3 font-mono text-[11px] tracking-[0.15em] uppercase text-mist hover:text-frost"
-            >
-              Enviar via WhatsApp →
-            </a>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <div>
+              <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-lime">
+                ✓ {generatedBatch.length} {generatedBatch.length === 1 ? "Chave Gerada" : "Chaves Geradas em Lote"}
+              </p>
+              <h4 className="font-display font-bold text-sm text-frost mt-0.5">
+                {generatedBatch[0].name} · {generatedBatch[0].email}
+              </h4>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => copyBatchAll(generatedBatch)}
+                className="btn-ghost rounded-lg px-4 py-2 font-mono text-[10px] tracking-wider uppercase text-lime border-lime/40 hover:bg-lime/10"
+              >
+                Copiar Todas as {generatedBatch.length} Chaves
+              </button>
+              <a
+                href={`https://wa.me/${generatedBatch[0].whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(
+                  `Olá ${generatedBatch[0].name}! Aqui estão suas ${generatedBatch.length} chave(s) de acesso vitalício para o Jasper Avatar:\n\n` +
+                    generatedBatch
+                      .map((k, i) => `🖥️ Máquina ${i + 1}: ${k.key}`)
+                      .join("\n") +
+                    `\n\nLembre-se: Cada chave ativará exclusivamente 1 computador (Node-Locked).`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn-neon rounded-lg px-4 py-2 font-mono text-[10px] tracking-wider uppercase"
+              >
+                Enviar Todas via WhatsApp →
+              </a>
+            </div>
+          </div>
+
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {generatedBatch.map((k, i) => (
+              <div
+                key={k.id}
+                className="flex items-center justify-between gap-3 p-3 rounded-xl glass border border-white/8 bg-void/50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-xs text-lime font-bold">#{i + 1}</span>
+                  <code className="font-mono text-sm text-frost tracking-wider">{k.key}</code>
+                  {k.notes && (
+                    <span className="font-mono text-[10px] text-mist/70 bg-white/5 px-2 py-0.5 rounded">
+                      {k.notes}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => copy(k.key)}
+                  className="font-mono text-[10px] text-mist hover:text-frost px-2.5 py-1 glass rounded uppercase"
+                >
+                  Copiar
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* ---------------- MÉTRICAS DE LICENCIAMENTO ---------------- */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: "Ativas", value: activeCount, color: "text-lime" },
           { label: "Desativadas", value: disabledCount, color: "text-amber-400" },
           { label: "Revogadas", value: revokedCount, color: "text-red-400" },
+          { label: "Clientes Únicos", value: uniqueClientsCount, color: "text-frost" },
           { label: "Máquinas Vinculadas", value: `${boundCount}/${allKeys.length}`, color: "text-neon" },
         ].map((s) => (
           <div key={s.label} className="glass rounded-2xl p-5 border border-white/5">
@@ -356,9 +475,17 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
               placeholder="Buscar por cliente, e-mail, chave ou máquina..."
               className="glass px-3.5 py-1.5 rounded-lg text-xs font-mono text-frost placeholder:text-mist/40 w-72 max-w-full focus:outline-none focus:border-neon/50"
             />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="font-mono text-[10px] text-mist hover:text-frost"
+              >
+                [Limpar]
+              </button>
+            )}
           </div>
           <span className="font-mono text-[10px] text-mist tracking-widest uppercase">
-            Total exibido: {filteredKeys.length}
+            Total exibido: {filteredKeys.length} chaves
           </span>
         </div>
 
@@ -389,158 +516,208 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
                   </td>
                 </tr>
               )}
-              {filteredKeys.map((k) => (
-                <tr key={k.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-                  {/* Cliente */}
-                  <td className="px-5 py-4">
-                    <p className="text-sm font-semibold text-frost">{k.name}</p>
-                    <p className="text-[11px] text-mist font-mono mt-0.5">{k.email}</p>
-                    <p className="text-[11px] text-mist/80 font-mono mt-0.5">{k.whatsapp}</p>
-                    {k.notes && (
-                      <span className="inline-block mt-1 text-[10px] font-mono text-mist/60 bg-white/5 rounded px-2 py-0.5">
-                        {k.notes}
-                      </span>
-                    )}
-                  </td>
+              {filteredKeys.map((k) => {
+                const totalOfThisClient = clientKeysMap[k.email.toLowerCase()]?.length || 1;
+                return (
+                  <tr key={k.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                    {/* Cliente */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-frost">{k.name}</p>
+                        {totalOfThisClient > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setSearch(k.email)}
+                            title={`Clique para ver todas as ${totalOfThisClient} chaves de ${k.name}`}
+                            className="font-mono text-[9px] text-neon bg-neon/10 border border-neon/30 rounded px-1.5 py-0.5 hover:bg-neon/20 transition-all cursor-pointer"
+                          >
+                            👤 {totalOfThisClient} máquinas
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-mist font-mono mt-0.5">{k.email}</p>
+                      <p className="text-[11px] text-mist/80 font-mono mt-0.5">{k.whatsapp}</p>
+                      {k.notes && (
+                        <span className="inline-block mt-1 text-[10px] font-mono text-mist/70 bg-white/5 border border-white/5 rounded px-2 py-0.5">
+                          {k.notes}
+                        </span>
+                      )}
+                    </td>
 
-                  {/* Chave de Acesso */}
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setRevealed((r) => ({ ...r, [k.id]: !r[k.id] }))}
-                        className="font-mono text-xs text-frost/90 hover:text-neon transition-colors tracking-wider text-left"
-                        title="Clique para revelar / ocultar"
-                      >
-                        {revealed[k.id] ? k.key : `${k.key.slice(0, 11)}••••••••••••`}
-                      </button>
-                      <button
-                        onClick={() => copy(k.key)}
-                        className="font-mono text-[10px] text-mist hover:text-neon transition-colors uppercase tracking-widest px-2 py-1 glass rounded"
-                        title="Copiar Chave"
-                      >
-                        Copiar
-                      </button>
-                    </div>
-                  </td>
+                    {/* Chave de Acesso */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setRevealed((r) => ({ ...r, [k.id]: !r[k.id] }))}
+                          className="font-mono text-xs text-frost/90 hover:text-neon transition-colors tracking-wider text-left"
+                          title="Clique para revelar / ocultar"
+                        >
+                          {revealed[k.id] ? k.key : `${k.key.slice(0, 11)}••••••••••••`}
+                        </button>
+                        <button
+                          onClick={() => copy(k.key)}
+                          className="font-mono text-[10px] text-mist hover:text-neon transition-colors uppercase tracking-widest px-2 py-1 glass rounded"
+                          title="Copiar Chave"
+                        >
+                          Copiar
+                        </button>
+                      </div>
+                    </td>
 
-                  {/* Status */}
-                  <td className="px-5 py-4">
-                    <span
-                      className={`inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.15em] px-2.5 py-1 rounded-full border ${
-                        k.status === "active"
-                          ? "text-lime border-lime/40 bg-lime/10"
-                          : k.status === "disabled"
-                          ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
-                          : "text-red-400 border-red-400/40 bg-red-400/10"
-                      }`}
-                    >
+                    {/* Status */}
+                    <td className="px-5 py-4">
                       <span
-                        className={`w-1.5 h-1.5 rounded-full ${
+                        className={`inline-flex items-center gap-1.5 font-mono text-[10px] tracking-[0.15em] px-2.5 py-1 rounded-full border ${
                           k.status === "active"
-                            ? "bg-lime"
+                            ? "text-lime border-lime/40 bg-lime/10"
                             : k.status === "disabled"
-                            ? "bg-amber-400"
-                            : "bg-red-400"
+                            ? "text-amber-400 border-amber-400/40 bg-amber-400/10"
+                            : "text-red-400 border-red-400/40 bg-red-400/10"
                         }`}
-                      />
-                      {k.status === "active"
-                        ? "ATIVA"
-                        : k.status === "disabled"
-                        ? "DESATIVADA"
-                        : "REVOGADA"}
-                    </span>
-                  </td>
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            k.status === "active"
+                              ? "bg-lime"
+                              : k.status === "disabled"
+                              ? "bg-amber-400"
+                              : "bg-red-400"
+                          }`}
+                        />
+                        {k.status === "active"
+                          ? "ATIVA"
+                          : k.status === "disabled"
+                          ? "DESATIVADA"
+                          : "REVOGADA"}
+                      </span>
+                    </td>
 
-                  {/* Restrição de Máquina Única (Node-Locking) */}
-                  <td className="px-5 py-4">
-                    {k.machineId ? (
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs text-frost font-medium flex items-center gap-1">
-                            💻 {k.machineName || "PC Cliente"}
-                          </span>
+                    {/* Restrição de Máquina Única (Node-Locking) */}
+                    <td className="px-5 py-4">
+                      {k.machineId ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-frost font-medium flex items-center gap-1">
+                              💻 {k.machineName || "PC Cliente"}
+                            </span>
+                          </div>
+                          <p className="font-mono text-[10px] text-mist/70 truncate max-w-[200px]" title={k.machineId}>
+                            ID: {k.machineId}
+                          </p>
+                          <div className="flex items-center gap-2 pt-1">
+                            {confirmAction?.id === k.id && confirmAction.action === "unlink" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-mono">
+                                <button
+                                  onClick={() => handleUnlinkMachine(k.id)}
+                                  className="text-amber-400 hover:underline font-bold"
+                                >
+                                  Confirmar liberação?
+                                </button>
+                                <button
+                                  onClick={() => setConfirmAction(null)}
+                                  className="text-mist hover:text-frost ml-1"
+                                >
+                                  [Não]
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmAction({ id: k.id, action: "unlink" })}
+                                className="font-mono text-[9px] text-amber-400/90 hover:text-amber-300 uppercase tracking-wider border border-amber-400/30 rounded px-2 py-0.5 hover:bg-amber-400/10"
+                                title="Libera a licença para ser ativada em outro computador"
+                              >
+                                Liberar Máquina
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <p className="font-mono text-[10px] text-mist/70 truncate max-w-[200px]" title={k.machineId}>
-                          ID: {k.machineId}
-                        </p>
-                        <div className="flex items-center gap-2 pt-1">
-                          {confirmAction?.id === k.id && confirmAction.action === "unlink" ? (
+                      ) : (
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-mist/60 bg-white/[0.03] border border-white/5 px-2.5 py-1 rounded-full">
+                          <span className="w-1 h-1 rounded-full bg-mist/40" />
+                          Livre · Aguardando PC
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Criação */}
+                    <td className="px-5 py-4 font-mono text-xs text-mist">{fmtDate(k.createdAt)}</td>
+
+                    {/* Ações */}
+                    <td className="px-5 py-4 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        {/* Botão para Emitir Chave Adicional para Este Cliente */}
+                        <button
+                          onClick={() => quickAddForClient(k)}
+                          className="font-mono text-[10px] tracking-wider uppercase text-neon border border-neon/30 bg-neon/5 hover:bg-neon/15 rounded-lg px-2.5 py-1.5 transition-all"
+                          title="Emitir mais uma chave para este cliente"
+                        >
+                          + Chave
+                        </button>
+
+                        {/* Editar Dados */}
+                        <button
+                          onClick={() => openEditModal(k)}
+                          className="btn-ghost rounded-lg px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase text-mist hover:text-frost"
+                          title="Alterar dados do cliente"
+                        >
+                          Editar
+                        </button>
+
+                        {/* Ativar / Desativar */}
+                        {k.status === "active" ? (
+                          <button
+                            onClick={() => changeStatus(k.id, "disabled")}
+                            className="font-mono text-[10px] tracking-wider uppercase text-amber-400/90 border border-amber-400/30 rounded-lg px-2.5 py-1.5 hover:bg-amber-400/10"
+                            title="Pausa temporariamente o acesso do cliente"
+                          >
+                            Desativar
+                          </button>
+                        ) : k.status === "disabled" ? (
+                          <button
+                            onClick={() => changeStatus(k.id, "active")}
+                            className="font-mono text-[10px] tracking-wider uppercase text-lime border border-lime/30 rounded-lg px-2.5 py-1.5 hover:bg-lime/10"
+                            title="Reativa a licença do cliente"
+                          >
+                            Ativar
+                          </button>
+                        ) : null}
+
+                        {/* Revogar */}
+                        {k.status !== "revoked" && (
+                          confirmAction?.id === k.id && confirmAction.action === "revoke" ? (
                             <span className="inline-flex items-center gap-1 text-[10px] font-mono">
                               <button
-                                onClick={() => handleUnlinkMachine(k.id)}
-                                className="text-amber-400 hover:underline font-bold"
+                                onClick={() => changeStatus(k.id, "revoked")}
+                                className="text-red-400 hover:underline font-bold px-2 py-1 bg-red-400/10 border border-red-400/30 rounded"
                               >
-                                Confirmar liberação?
+                                Revogar?
                               </button>
                               <button
                                 onClick={() => setConfirmAction(null)}
-                                className="text-mist hover:text-frost ml-1"
+                                className="text-mist hover:text-frost px-1"
                               >
-                                [Não]
+                                Não
                               </button>
                             </span>
                           ) : (
                             <button
-                              onClick={() => setConfirmAction({ id: k.id, action: "unlink" })}
-                              className="font-mono text-[9px] text-amber-400/90 hover:text-amber-300 uppercase tracking-wider border border-amber-400/30 rounded px-2 py-0.5 hover:bg-amber-400/10"
-                              title="Libera a licença para ser ativada em outro computador"
+                              onClick={() => setConfirmAction({ id: k.id, action: "revoke" })}
+                              className="font-mono text-[10px] tracking-wider uppercase text-red-400/80 border border-red-400/30 rounded-lg px-2.5 py-1.5 hover:bg-red-400/10"
+                              title="Revoga a chave permanentemente"
                             >
-                              Liberar Máquina
+                              Revogar
                             </button>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 font-mono text-[10px] tracking-wider text-mist/60 bg-white/[0.03] border border-white/5 px-2.5 py-1 rounded-full">
-                        <span className="w-1 h-1 rounded-full bg-mist/40" />
-                        Livre · Aguardando PC
-                      </span>
-                    )}
-                  </td>
+                          )
+                        )}
 
-                  {/* Criação */}
-                  <td className="px-5 py-4 font-mono text-xs text-mist">{fmtDate(k.createdAt)}</td>
-
-                  {/* Ações */}
-                  <td className="px-5 py-4 text-right">
-                    <div className="inline-flex items-center gap-2">
-                      {/* Editar Dados */}
-                      <button
-                        onClick={() => openEditModal(k)}
-                        className="btn-ghost rounded-lg px-2.5 py-1.5 font-mono text-[10px] tracking-wider uppercase text-mist hover:text-neon"
-                        title="Alterar dados do cliente"
-                      >
-                        Editar
-                      </button>
-
-                      {/* Ativar / Desativar */}
-                      {k.status === "active" ? (
-                        <button
-                          onClick={() => changeStatus(k.id, "disabled")}
-                          className="font-mono text-[10px] tracking-wider uppercase text-amber-400/90 border border-amber-400/30 rounded-lg px-2.5 py-1.5 hover:bg-amber-400/10"
-                          title="Pausa temporariamente o acesso do cliente"
-                        >
-                          Desativar
-                        </button>
-                      ) : k.status === "disabled" ? (
-                        <button
-                          onClick={() => changeStatus(k.id, "active")}
-                          className="font-mono text-[10px] tracking-wider uppercase text-lime border border-lime/30 rounded-lg px-2.5 py-1.5 hover:bg-lime/10"
-                          title="Reativa a licença do cliente"
-                        >
-                          Ativar
-                        </button>
-                      ) : null}
-
-                      {/* Revogar */}
-                      {k.status !== "revoked" && (
-                        confirmAction?.id === k.id && confirmAction.action === "revoke" ? (
+                        {/* Excluir Definitivamente */}
+                        {confirmAction?.id === k.id && confirmAction.action === "delete" ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-mono">
                             <button
-                              onClick={() => changeStatus(k.id, "revoked")}
-                              className="text-red-400 hover:underline font-bold px-2 py-1 bg-red-400/10 border border-red-400/30 rounded"
+                              onClick={() => handleDelete(k.id)}
+                              className="text-red-400 hover:underline font-bold px-2 py-1 bg-red-400/20 border border-red-400/50 rounded"
                             >
-                              Revogar?
+                              Excluir?
                             </button>
                             <button
                               onClick={() => setConfirmAction(null)}
@@ -551,44 +728,18 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
                           </span>
                         ) : (
                           <button
-                            onClick={() => setConfirmAction({ id: k.id, action: "revoke" })}
-                            className="font-mono text-[10px] tracking-wider uppercase text-red-400/80 border border-red-400/30 rounded-lg px-2.5 py-1.5 hover:bg-red-400/10"
-                            title="Revoga a chave permanentemente"
+                            onClick={() => setConfirmAction({ id: k.id, action: "delete" })}
+                            className="font-mono text-[10px] tracking-wider uppercase text-mist/60 hover:text-red-400 transition-colors p-1.5"
+                            title="Excluir licença permanentemente do banco"
                           >
-                            Revogar
+                            ✕
                           </button>
-                        )
-                      )}
-
-                      {/* Excluir Definitivamente */}
-                      {confirmAction?.id === k.id && confirmAction.action === "delete" ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-mono">
-                          <button
-                            onClick={() => handleDelete(k.id)}
-                            className="text-red-400 hover:underline font-bold px-2 py-1 bg-red-400/20 border border-red-400/50 rounded"
-                          >
-                            Excluir?
-                          </button>
-                          <button
-                            onClick={() => setConfirmAction(null)}
-                            className="text-mist hover:text-frost px-1"
-                          >
-                            Não
-                          </button>
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmAction({ id: k.id, action: "delete" })}
-                          className="font-mono text-[10px] tracking-wider uppercase text-mist/60 hover:text-red-400 transition-colors p-1.5"
-                          title="Excluir licença permanentemente do banco"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -651,7 +802,7 @@ export function KeysPanel({ notify }: { notify: (m: string, t?: "ok" | "err") =>
                   className="field min-h-[72px] resize-none"
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Informações adicionais sobre o cliente ou contrato..."
+                  placeholder="Ex: PC Pessoal / Laptop Empresa..."
                 />
               </div>
 

@@ -197,7 +197,8 @@ export async function fetchKeys(): Promise<KeyRow[]> {
     if (!snap.empty) {
       const list: KeyRow[] = [];
       snap.forEach((docSnap) => {
-        list.push(docSnap.data() as KeyRow);
+        const item = docSnap.data() as KeyRow;
+        list.push({ ...item, id: docSnap.id || item.id || item.key });
       });
       localKeys = list;
       return list;
@@ -215,7 +216,7 @@ export async function createKey(data: {
   notes?: string;
 }): Promise<KeyRow> {
   const generated = generateLicenseKey(data.name, data.email, data.whatsapp);
-  const id = `key_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const id = generated;
   const newRow: KeyRow = {
     id,
     name: data.name.trim(),
@@ -240,6 +241,51 @@ export async function createKey(data: {
 
   localKeys = [newRow, ...localKeys];
   return newRow;
+}
+
+export async function createKeysBatch(data: {
+  name: string;
+  email: string;
+  whatsapp: string;
+  notes?: string;
+  quantity?: number;
+}): Promise<KeyRow[]> {
+  const qty = Math.max(1, Math.min(50, data.quantity || 1));
+  const newRows: KeyRow[] = [];
+  const now = new Date().toISOString();
+
+  for (let i = 1; i <= qty; i++) {
+    const generated = generateLicenseKey(data.name, data.email, data.whatsapp);
+    const id = generated;
+    const baseNotes = data.notes?.trim() || "";
+    const seatNote = qty > 1 ? `Máquina ${i}/${qty}${baseNotes ? ` · ${baseNotes}` : ""}` : baseNotes;
+
+    const row: KeyRow = {
+      id,
+      name: data.name.trim(),
+      email: data.email.trim().toLowerCase(),
+      whatsapp: data.whatsapp.trim(),
+      key: generated,
+      status: "active",
+      notes: seatNote,
+      createdAt: now,
+      invalidatedAt: null,
+      machineId: null,
+      machineName: null,
+      activatedAt: null,
+      lastSeenAt: null,
+    };
+    newRows.push(row);
+  }
+
+  try {
+    await Promise.all(newRows.map((r) => setDoc(doc(db, "licenses", r.id), r)));
+  } catch (err) {
+    console.warn("Gravando chaves em lote no cache local:", err);
+  }
+
+  localKeys = [...newRows, ...localKeys];
+  return newRows;
 }
 
 export async function updateKey(

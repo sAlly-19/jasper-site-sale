@@ -28,10 +28,30 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // 3. Licenças e Chaves de Clientes (CONFIDENCIAL)
-    // Leitura e gravação RESTRITAS a administradores autorizados.
-    match /licenses/{document=**} {
+    // 3. Licenças e Chaves de Clientes (Validação e Node-Locking Nativo sem Cloud Functions)
+    match /licenses/{licenseKey} {
+      // Administrador tem controle total (criar, editar, listar, excluir, revogar, desvincular)
       allow read, write: if isAdmin();
+
+      // Jasper Desktop (Cliente sem privilégios de Admin):
+      // - allow get: permite ler APENAS o documento da sua própria chave específica (busca direta por ID/Key)
+      // - allow list: bloqueado para não-admins (impede varredura, enumeração ou vazamento de chaves de terceiros)
+      allow get: if true;
+      allow list: if isAdmin();
+
+      // Node-Locking Estrito no Firestore:
+      // Permite ao Desktop vincular o HWID na primeira ativação ou atualizar heartbeat (lastSeenAt) na mesma máquina.
+      // Impede adulteração de chave, nome, e-mail ou status, e impede ativação em uma segunda máquina.
+      allow update: if 
+        resource.data.status == "active"
+        && request.resource.data.key == resource.data.key
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.name == resource.data.name
+        && request.resource.data.status == resource.data.status
+        && (
+          (resource.data.machineId == null || resource.data.machineId == "")
+          || (resource.data.machineId == request.resource.data.machineId)
+        );
     }
 
     // 4. Coleção de Administradores Autorizados (Whitelist)

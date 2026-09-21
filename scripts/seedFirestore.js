@@ -315,8 +315,8 @@ async function seedFirestore() {
     console.log("✓ Promoção 'LIFETIME50' (50% OFF) criada com sucesso!");
 
     // 3. Licença de demonstração inicial
-    console.log("Criando licença inicial 'licenses/key_dev_master'...");
-    await db.collection("licenses").doc("key_dev_master").set(initialKey, { merge: true });
+    console.log(`Criando licença inicial 'licenses/${initialKey.key}'...`);
+    await db.collection("licenses").doc(initialKey.key).set(initialKey, { merge: true });
     console.log("✓ Licença inicial criada com sucesso!");
 
     console.log("\n=======================================================");

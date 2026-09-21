@@ -457,11 +457,27 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
 
 
 
-  /* pricing math */
+  /* multi-seat & pricing math */
+  const [quantity, setQuantity] = useState<number>(1);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [buyerName, setBuyerName] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerWhatsApp, setBuyerWhatsApp] = useState("");
+  const [pixSimulated, setPixSimulated] = useState(false);
+  const [orderDone, setOrderDone] = useState(false);
+
   const base = data.prices[currency] ?? data.prices.USD;
   const original = data.prices[`${currency}_original`] ?? data.prices.USD_original;
-  const discount = data.promo ? data.promo.discountPercent : 0;
-  const finalPrice = Math.round(base * (1 - discount / 100));
+  const promoDiscount = data.promo ? data.promo.discountPercent : 0;
+
+  // Descontos progressivos por quantidade de computadores (Bundle Multi-Seat)
+  const bundleDiscount = quantity >= 5 ? 25 : quantity >= 3 ? 15 : quantity === 2 ? 10 : 0;
+  const totalDiscount = Math.min(90, promoDiscount + bundleDiscount);
+  const discount = totalDiscount;
+
+  const unitPrice = Math.round(base * (1 - totalDiscount / 100));
+  const finalPrice = unitPrice * quantity;
+  const originalTotal = original * quantity;
   const faqItems = data.faq?.[locale] || data.faq?.en || [];
 
   const dismissPromo = () => {
@@ -809,21 +825,106 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
                   )}
                 </div>
 
+                {/* Seletor Multi-Seat (Múltiplas Máquinas) */}
+                <div className="mt-8 p-5 rounded-2xl bg-white/[0.03] border border-white/10">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs tracking-[0.2em] text-neon uppercase font-semibold">
+                          QUANTIDADE DE MÁQUINAS
+                        </span>
+                        {bundleDiscount > 0 && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-lime/20 text-lime border border-lime/40 font-bold">
+                            COMBO -{bundleDiscount}%
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-mist mt-1">
+                        Cada chave é vinculada individualmente ao hardware de 1 computador.
+                      </p>
+                    </div>
+
+                    {/* Stepper */}
+                    <div className="flex items-center gap-3 bg-void/80 border border-white/15 rounded-xl px-2 py-1.5 self-start sm:self-auto shadow-inner">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        disabled={quantity <= 1}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center font-mono font-bold text-base text-frost hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        title="Diminuir"
+                      >
+                        −
+                      </button>
+                      <span className="font-mono font-bold text-sm text-lime min-w-[85px] text-center select-none">
+                        {quantity} {quantity === 1 ? "Máquina" : "Máquinas"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+                        disabled={quantity >= 20}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center font-mono font-bold text-base text-frost hover:bg-white/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                        title="Aumentar"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Preset Pills */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { q: 1, label: "1 PC (Individual)" },
+                      { q: 2, label: "2 PCs (-10% Combo)" },
+                      { q: 3, label: "3 PCs (-15% Combo)" },
+                      { q: 5, label: "5 PCs (-25% Estúdio)" },
+                    ].map((item) => (
+                      <button
+                        key={item.q}
+                        type="button"
+                        onClick={() => setQuantity(item.q)}
+                        className={`text-xs font-mono px-3.5 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                          quantity === item.q
+                            ? "border-lime bg-lime/15 text-lime font-bold shadow-[0_0_12px_rgba(163,255,18,0.2)]"
+                            : "border-white/10 bg-white/[0.02] text-mist hover:text-frost hover:border-white/25"
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="mt-8 flex items-end gap-5 flex-wrap">
                   <span className="font-display font-black text-6xl md:text-7xl tracking-tight text-frost text-glow">
                     {formatMoney(finalPrice, currency, meta.intl)}
                   </span>
                   <div className="pb-2">
-                    <span className="block font-mono text-sm text-mist/60 line-through">{formatMoney(original, currency, meta.intl)}</span>
-                    {discount > 0 && (
-                      <span className="font-mono text-[11px] text-lime tracking-[0.2em]">
-                        −{discount}% {ui.off}
+                    <span className="block font-mono text-sm text-mist/60 line-through">
+                      {formatMoney(originalTotal, currency, meta.intl)}
+                    </span>
+                    {totalDiscount > 0 && (
+                      <span className="font-mono text-[11px] text-lime tracking-[0.2em] font-semibold">
+                        −{totalDiscount}% {ui.off}
+                        {bundleDiscount > 0 && ` (Combo ${quantity} PCs)`}
                       </span>
                     )}
                   </div>
                 </div>
 
-                {data.promo && discount > 0 && (
+                {quantity > 1 && (
+                  <p className="mt-2 text-xs font-mono text-mist">
+                    Equivalente a{" "}
+                    <span className="text-lime font-semibold">
+                      {formatMoney(unitPrice, currency, meta.intl)}
+                    </span>{" "}
+                    por computador · Economia total de{" "}
+                    <span className="text-frost font-semibold">
+                      {formatMoney(originalTotal - finalPrice, currency, meta.intl)}
+                    </span>
+                  </p>
+                )}
+
+                {data.promo && promoDiscount > 0 && (
                   <div className="mt-6 flex items-center gap-3 rounded-xl border border-lime/30 bg-lime/[0.06] px-5 py-4">
                     <span className="font-mono text-sm text-lime font-semibold tracking-[0.2em]">{data.promo.code}</span>
                     <span className="text-mist text-[13px]">
@@ -840,20 +941,22 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
                       {t(k)}
                     </li>
                   ))}
+                  {quantity > 1 && (
+                    <li className="flex items-start gap-3 text-[15px] text-lime font-medium">
+                      <span className="text-lime mt-0.5 shrink-0"><Icon name="check" className="w-4.5 h-4.5" /></span>
+                      {quantity} Chaves individuais de ativação perpétua (1 por computador)
+                    </li>
+                  )}
                 </ul>
 
-                <a
-                  href="#top"
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      window.scrollTo({ top: 0, behavior: "smooth" });
-                    }
-                  }}
-                  className="btn-neon w-full mt-10 text-sm px-8 py-5 rounded-2xl tracking-[0.08em]"
+                <button
+                  type="button"
+                  onClick={() => setCheckoutOpen(true)}
+                  className="btn-neon w-full mt-10 text-sm px-8 py-5 rounded-2xl tracking-[0.08em] shadow-[0_0_30px_rgba(63,242,255,0.2)] cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {t("pricing.cta")}
+                  {quantity > 1 ? `EQUIPAR ${quantity} COMPUTADORES AGORA` : t("pricing.cta")}
                   <Icon name="arrow" className="w-4 h-4" />
-                </a>
+                </button>
                 <p className="mt-5 text-center font-mono text-[10px] tracking-[0.18em] text-mist/70 uppercase">
                   {t("pricing.guarantee")}
                 </p>
@@ -947,6 +1050,192 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
           </div>
         </div>
       </footer>
+
+      {/* ---------------- CHECKOUT MODAL ---------------- */}
+      {checkoutOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-abyss/85 backdrop-blur-xl flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setCheckoutOpen(false)}
+        >
+          <div
+            className="glass-deep hud-frame scanlines rounded-3xl p-6 sm:p-8 max-w-lg w-full relative border border-neon/40 shadow-[0_0_60px_rgba(63,242,255,0.2)] my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Botão Fechar */}
+            <button
+              type="button"
+              onClick={() => {
+                setCheckoutOpen(false);
+                setPixSimulated(false);
+                setOrderDone(false);
+              }}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/5 border border-white/10 text-mist hover:text-frost hover:bg-white/15 flex items-center justify-center transition-colors font-mono text-base cursor-pointer"
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+
+            {/* Cabeçalho */}
+            <div className="mb-6">
+              <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-lime border border-lime/30 bg-lime/10 px-3 py-1 rounded-full inline-block">
+                PEDIDO EXPRESSO · ACESSO VITALÍCIO
+              </span>
+              <h3 className="font-display font-black text-2xl sm:text-3xl text-frost mt-3">
+                {quantity > 1
+                  ? `Equipar ${quantity} Computadores`
+                  : "Adquirir Jasper Avatar"}
+              </h3>
+              <p className="text-xs text-mist mt-1.5 leading-relaxed">
+                {quantity > 1
+                  ? `Você receberá ${quantity} chaves de ativação exclusivas. Cada chave equipará 1 computador permanentemente.`
+                  : "Sua chave de acesso vitalício será vinculada ao hardware da sua máquina com atualizações contínuas."}
+              </p>
+            </div>
+
+            {/* Resumo do Pedido */}
+            <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 mb-6">
+              <div className="flex justify-between items-center text-xs text-mist mb-1.5">
+                <span>Plano selecionado:</span>
+                <span className="text-frost font-mono font-medium">
+                  {quantity}x Licença Vitalícia (Node-Locked)
+                </span>
+              </div>
+              {bundleDiscount > 0 && (
+                <div className="flex justify-between items-center text-xs text-lime mb-1.5">
+                  <span>Desconto Combo Multi-Seat:</span>
+                  <span className="font-mono font-bold">−{bundleDiscount}%</span>
+                </div>
+              )}
+              {promoDiscount > 0 && (
+                <div className="flex justify-between items-center text-xs text-lime mb-1.5">
+                  <span>Cupom Promocional ({data.promo?.code}):</span>
+                  <span className="font-mono font-bold">−{promoDiscount}%</span>
+                </div>
+              )}
+              <div className="flex justify-between items-baseline pt-2.5 mt-2 border-t border-white/10">
+                <div>
+                  <span className="font-display text-sm font-bold text-frost block">Total a Pagar:</span>
+                  {quantity > 1 && (
+                    <span className="text-[11px] font-mono text-mist">
+                      {formatMoney(unitPrice, currency, meta.intl)} / máquina
+                    </span>
+                  )}
+                </div>
+                <span className="font-display text-2xl sm:text-3xl font-black text-neon text-glow">
+                  {formatMoney(finalPrice, currency, meta.intl)}
+                </span>
+              </div>
+            </div>
+
+            {/* Formulário de Identificação */}
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block font-mono text-[11px] text-mist uppercase tracking-wider mb-1.5">
+                  Seu Nome Completo ou Empresa *
+                </label>
+                <input
+                  type="text"
+                  value={buyerName}
+                  onChange={(e) => setBuyerName(e.target.value)}
+                  placeholder="Ex: Carlos Eduardo"
+                  className="w-full bg-void/70 border border-white/15 rounded-xl px-4 py-3 text-sm text-frost focus:border-neon focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block font-mono text-[11px] text-mist uppercase tracking-wider mb-1.5">
+                  Seu E-mail (para envio das chaves) *
+                </label>
+                <input
+                  type="email"
+                  value={buyerEmail}
+                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  placeholder="carlos@exemplo.com"
+                  className="w-full bg-void/70 border border-white/15 rounded-xl px-4 py-3 text-sm text-frost focus:border-neon focus:outline-none transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block font-mono text-[11px] text-mist uppercase tracking-wider mb-1.5">
+                  WhatsApp com DDD (para liberação rápida)
+                </label>
+                <input
+                  type="tel"
+                  value={buyerWhatsApp}
+                  onChange={(e) => setBuyerWhatsApp(e.target.value)}
+                  placeholder="Ex: (11) 98765-4321"
+                  className="w-full bg-void/70 border border-white/15 rounded-xl px-4 py-3 text-sm text-frost focus:border-neon focus:outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="space-y-3">
+              <a
+                href={`https://wa.me/5511999998888?text=${encodeURIComponent(
+                  `Olá! Gostaria de finalizar a aquisição do Jasper Avatar HUD.\n\n` +
+                    `👤 Nome: ${buyerName || "Cliente"}\n` +
+                    `📧 E-mail: ${buyerEmail || "Não informado"}\n` +
+                    `📱 WhatsApp: ${buyerWhatsApp || "Não informado"}\n` +
+                    `🖥️ Quantidade: ${quantity} computador(es) / licença(s)\n` +
+                    `💰 Valor Total: ${formatMoney(finalPrice, currency, meta.intl)}\n\n` +
+                    `Por favor, me envie as instruções de pagamento e a ativação das minhas ${quantity} chave(s)!`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOrderDone(true)}
+                className="btn-neon w-full py-4 text-xs font-bold tracking-widest uppercase rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(63,242,255,0.25)]"
+              >
+                <span>Finalizar Pedido via WhatsApp</span>
+                <Icon name="arrow" className="w-4 h-4" />
+              </a>
+
+              {currency === "BRL" && (
+                <button
+                  type="button"
+                  onClick={() => setPixSimulated(!pixSimulated)}
+                  className="w-full py-3 text-xs font-mono text-frost hover:bg-white/5 border border-white/15 rounded-xl transition-all cursor-pointer"
+                >
+                  {pixSimulated ? "Ocultar Chave Pix" : "Pagar via Pix (Chave Copia e Cola)"}
+                </button>
+              )}
+
+              {pixSimulated && (
+                <div className="p-4 rounded-xl bg-void/90 border border-lime/40 text-left font-mono text-xs space-y-2.5">
+                  <div className="flex justify-between items-center text-lime font-bold">
+                    <span>CHAVE PIX (E-MAIL OFICIAL)</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof navigator !== "undefined") {
+                          navigator.clipboard.writeText("financeiro@jasperavatar.com");
+                          alert("Chave Pix copiada!");
+                        }
+                      }}
+                      className="text-[10px] bg-lime/20 px-2.5 py-1 rounded text-lime hover:bg-lime/30 uppercase cursor-pointer border border-lime/40"
+                    >
+                      Copiar Chave
+                    </button>
+                  </div>
+                  <p className="text-frost select-all break-all bg-black/50 p-2.5 rounded border border-white/10 text-[12px] font-semibold">
+                    financeiro@jasperavatar.com
+                  </p>
+                  <p className="text-[11px] text-mist leading-normal">
+                    Após o pagamento de <strong>{formatMoney(finalPrice, currency, meta.intl)}</strong>, envie o comprovante para nosso WhatsApp para receber suas {quantity} chave(s) de ativação imediatamente.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Garantia */}
+            <div className="mt-6 pt-4 border-t border-white/10 text-center">
+              <span className="font-mono text-[10px] tracking-wider text-mist/60 uppercase block">
+                🛡️ Garantia incondicional de 7 dias · Licença perpétua sem mensalidades
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

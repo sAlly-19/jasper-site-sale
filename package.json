@@ -10,7 +10,10 @@
     "build:css": "tailwindcss -i ./src/styles/tailwind.css -o ./src/styles/compiled.css --minify",
     "build:web": "npm run build:css && expo export -p web",
     "seed": "node scripts/seedFirestore.js",
-    "create-admin": "node scripts/createAdmin.js"
+    "create-admin": "node scripts/createAdmin.js",
+    "deploy:rules": "firebase deploy --only firestore:rules",
+    "deploy:hosting": "npm run build:web && firebase deploy --only hosting",
+    "deploy": "npm run build:web && firebase deploy"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

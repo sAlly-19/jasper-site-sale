@@ -1,13 +1,19 @@
 /**
  * Jasper Desktop - Cliente de Licenciamento com Restrição de Máquina Única (Node-Locking)
  * 
- * Este módulo executa dentro do aplicativo Desktop (Electron / Node / C++ / Native)
- * e valida a licença do cliente via HTTPS através da Cloud Function `/validateLicense`,
- * mantendo as coleções do Firestore 100% protegidas e inacessíveis ao público.
+ * Validação 100% nativa via Google Firestore Security Rules (Sem necessidade de Cloud Functions).
+ * 
+ * Regras de Proteção:
+ * - Leitura: Permitida apenas por chave exata (O(1) por doc ID). Bloqueia varredura ou vazamento de chaves de terceiros.
+ * - Escrita: O Firestore permite vincular o HWID na primeira ativação ou atualizar na mesma máquina.
+ *   Se outro computador tentar utilizar a mesma chave, as regras do Firestore rejeitam com PERMISSION_DENIED.
  */
 
+import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "@/config/firebase";
+
 export interface HardwareInfo {
-  machineId: string;   // Hash SHA-256 dos componentes fixos de hardware
+  machineId: string;   // Hash SHA-256 dos componentes fixos de hardware (HWID)
   machineName: string; // Nome do host (ex: DESKTOP-ALISSON)
   platform: string;    // win32, darwin, linux
 }
@@ -25,15 +31,6 @@ export interface LicenseValidationResult {
   activatedAt?: string;
   lastSeenAt?: string;
 }
-
-// URL do endpoint de validação (Cloud Function ou Servidor Local)
-const VALIDATION_ENDPOINT =
-  process.env.EXPO_PUBLIC_LICENSE_API_URL ||
-  "https://us-central1-jasper-avatar.cloudfunctions.net/validateLicense";
-
-// Token de aplicação compartilhado entre o Jasper Desktop e o backend
-const APP_SECRET_TOKEN =
-  process.env.EXPO_PUBLIC_JASPER_APP_TOKEN || "JASPER_DESKTOP_SEC_2026_TOKEN";
 
 /**
  * No Jasper Desktop (Electron/Node), obtém a impressão digital (Fingerprint) do hardware.
@@ -65,38 +62,121 @@ export function generateMachineFingerprint(): HardwareInfo {
 }
 
 /**
- * Envia requisição segura para a Cloud Function validar e vincular a chave à máquina.
- * Não requer login de administrador no cliente; utiliza token de aplicação seguro.
+ * Valida a chave de licença e aplica a restrição de máquina única diretamente no Firestore.
+ * Não depende de Cloud Functions nem do plano Blaze.
  */
 export async function activateDesktopLicense(
   licenseKey: string,
   clientVersion = "1.0.0"
 ): Promise<LicenseValidationResult> {
   const hw = generateMachineFingerprint();
+  const cleanKey = licenseKey.trim().toUpperCase();
+  const now = new Date().toISOString();
 
   try {
-    const response = await fetch(VALIDATION_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-jasper-app-token": APP_SECRET_TOKEN,
-      },
-      body: JSON.stringify({
-        licenseKey: licenseKey.trim().toUpperCase(),
-        machineId: hw.machineId,
-        machineName: hw.machineName,
-        clientVersion,
-      }),
-    });
+    const docRef = doc(db, "licenses", cleanKey);
+    const snap = await getDoc(docRef);
 
-    const data: LicenseValidationResult = await response.json();
-    return data;
+    if (!snap.exists()) {
+      return {
+        valid: false,
+        error: "LICENSE_NOT_FOUND",
+        message: "Chave de licença inexistente ou incorreta.",
+      };
+    }
+
+    const license = snap.data() as {
+      key: string;
+      name: string;
+      email: string;
+      status: string;
+      machineId?: string | null;
+      machineName?: string | null;
+      activatedAt?: string | null;
+      lastSeenAt?: string | null;
+      lastClientVersion?: string | null;
+    };
+
+    // 1. Verificação de Status da Licença
+    if (license.status === "disabled") {
+      return {
+        valid: false,
+        error: "LICENSE_DISABLED",
+        message: "Esta licença foi temporariamente suspensa pelo administrador.",
+      };
+    }
+
+    if (license.status === "revoked") {
+      return {
+        valid: false,
+        error: "LICENSE_REVOKED",
+        message: "Esta licença foi permanentemente revogada.",
+      };
+    }
+
+    // 2. CASO A: Primeira Ativação (Node-Locking)
+    if (!license.machineId) {
+      await updateDoc(docRef, {
+        machineId: hw.machineId,
+        machineName: hw.machineName || "Computador Pessoal",
+        activatedAt: now,
+        lastSeenAt: now,
+        lastClientVersion: clientVersion,
+      });
+
+      return {
+        valid: true,
+        status: "ACTIVATED",
+        message: `Licença vinculada e ativada com sucesso nesta máquina (${hw.machineName})!`,
+        client: {
+          name: license.name,
+          email: license.email,
+        },
+        machineId: hw.machineId,
+        activatedAt: now,
+      };
+    }
+
+    // 3. CASO B: Mesma Máquina -> Atualiza heartbeat
+    if (license.machineId === hw.machineId) {
+      await updateDoc(docRef, {
+        lastSeenAt: now,
+        machineName: hw.machineName || license.machineName,
+        lastClientVersion: clientVersion || license.lastClientVersion || "1.0.0",
+      });
+
+      return {
+        valid: true,
+        status: "ACTIVE",
+        message: "Licença ativa e autorizada nesta máquina.",
+        client: {
+          name: license.name,
+          email: license.email,
+        },
+        machineId: hw.machineId,
+        lastSeenAt: now,
+      };
+    }
+
+    // 4. CASO C: Máquina Diferente -> Bloqueio estrito
+    return {
+      valid: false,
+      error: "MACHINE_MISMATCH",
+      message: `Esta licença é exclusiva e já está vinculada a outro computador ("${license.machineName || "Dispositivo Anterior"}"). Para transferir o acesso, solicite a liberação ao administrador.`,
+    };
   } catch (err: any) {
+    if (err?.code === "permission-denied") {
+      return {
+        valid: false,
+        error: "PERMISSION_DENIED",
+        message: "Acesso negado pelas regras de segurança da licença. Esta máquina não possui autorização para usar esta chave.",
+      };
+    }
+
     return {
       valid: false,
       error: "NETWORK_ERROR",
-      message:
-        "Não foi possível comunicar com os servidores de validação de licença do Jasper. Verifique sua conexão com a internet.",
+      message: "Não foi possível comunicar com o banco de dados do Jasper. Verifique sua conexão com a internet.",
     };
   }
 }
