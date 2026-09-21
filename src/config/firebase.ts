@@ -9,14 +9,15 @@ import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 import { Platform } from "react-native";
 
 // Configuração oficial do Firebase da aplicação Web
+// As chaves são injetadas de forma segura via variáveis de ambiente (.env)
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyBkvZHEAr0Vn32I6Qcr4TW958L5nhHSx_0",
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "jasper-avatar.firebaseapp.com",
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "jasper-avatar",
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "jasper-avatar.firebasestorage.app",
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "333089226227",
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:333089226227:web:c7928a46813b8af0d56686",
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-S3C5XC47NC",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 // Inicialização Singleton do Firebase App

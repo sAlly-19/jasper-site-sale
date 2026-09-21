@@ -17,6 +17,14 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - run: npm run build:web
+        env:
+          EXPO_PUBLIC_FIREBASE_API_KEY: ${{ secrets.EXPO_PUBLIC_FIREBASE_API_KEY }}
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: jasper-avatar.firebaseapp.com
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: jasper-avatar
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: jasper-avatar.firebasestorage.app
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "333089226227"
+          EXPO_PUBLIC_FIREBASE_APP_ID: "1:333089226227:web:c7928a46813b8af0d56686"
+          EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID: "G-S3C5XC47NC"
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
