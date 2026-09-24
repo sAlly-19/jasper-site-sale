@@ -8,8 +8,7 @@ import { getFirestore, Firestore } from "firebase/firestore";
 import { getAnalytics, isSupported, Analytics } from "firebase/analytics";
 import { Platform } from "react-native";
 
-// Configuração oficial do Firebase da aplicação Web
-// As chaves são injetadas de forma segura via variáveis de ambiente (.env)
+// A configuração web é pública por definição; somente credenciais administrativas são secretas.
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "",
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -19,6 +18,19 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
   measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
+
+const requiredFirebaseConfig = {
+  EXPO_PUBLIC_FIREBASE_API_KEY: firebaseConfig.apiKey,
+  EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: firebaseConfig.authDomain,
+  EXPO_PUBLIC_FIREBASE_PROJECT_ID: firebaseConfig.projectId,
+  EXPO_PUBLIC_FIREBASE_APP_ID: firebaseConfig.appId,
+};
+const missingFirebaseConfig = Object.entries(requiredFirebaseConfig)
+  .filter(([, value]) => !value)
+  .map(([name]) => name);
+if (missingFirebaseConfig.length > 0) {
+  throw new Error(`Configuração Firebase incompleta: ${missingFirebaseConfig.join(', ')}`);
+}
 
 // Inicialização Singleton do Firebase App
 const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();

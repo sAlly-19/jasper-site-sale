@@ -4,10 +4,12 @@ const { getFirestore } = require("firebase-admin/firestore");
 const path = require("path");
 const fs = require("fs");
 
-const serviceAccountPath = path.resolve(__dirname, "../jasper-avatar-firebase-adminsdk-fbsvc-fa198bd099.json");
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
+  ? path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+  : "";
 
-if (!fs.existsSync(serviceAccountPath)) {
-  console.error("ERRO: Chave do Firebase Admin SDK não encontrada em:", serviceAccountPath);
+if (!serviceAccountPath || !fs.existsSync(serviceAccountPath)) {
+  console.error("ERRO: defina FIREBASE_SERVICE_ACCOUNT_PATH com o caminho da conta de serviço.");
   process.exit(1);
 }
 
@@ -19,8 +21,12 @@ const db = getFirestore(app);
 const [,, emailArg, passArg] = process.argv;
 
 async function run() {
-  const email = (emailArg || "admin@jasperavatar.com").trim().toLowerCase();
-  const password = passArg || "AdminJasper2026!";
+  if (!emailArg || !passArg || passArg.length < 12) {
+    console.error("Uso: npm run create-admin -- <email> <senha-com-12-ou-mais-caracteres>");
+    process.exit(1);
+  }
+  const email = emailArg.trim().toLowerCase();
+  const password = passArg;
 
   console.log(`\n======================================================`);
   console.log(` CONFIGURANDO ADMINISTRADOR OFICIAL NO FIREBASE AUTH `);
@@ -61,22 +67,17 @@ async function run() {
   await db.collection("admins").doc(user.uid).set({
     email,
     role: "admin",
+    active: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  }, { merge: true });
-
-  // Também indexa pelo e-mail para verificação por e-mail direto
-  await db.collection("admins").doc(email).set({
-    uid: user.uid,
-    role: "admin",
-    createdAt: new Date().toISOString(),
   }, { merge: true });
 
   console.log(`✓ Whitelist do Firestore atualizada.`);
   console.log(`\n======================================================`);
   console.log(` CONTA DE ADMINISTRADOR PRONTA PARA USO! `);
   console.log(` E-mail: ${email}`);
-  console.log(` Senha:  ${password}`);
+  console.log(` UID:    ${user.uid}`);
+  console.log(` Cadastre este mesmo UID na tabela admins do D1 antes de usar o painel.`);
   console.log(`======================================================\n`);
   process.exit(0);
 }

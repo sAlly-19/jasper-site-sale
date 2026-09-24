@@ -1,0 +1,31 @@
+{
+  "name": "jasper-backend-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "audit:runtime": "npm audit --omit=dev --audit-level=high",
+    "sbom:runtime": "npm sbom --omit=dev --sbom-format cyclonedx --sbom-type application",
+    "secrets:generate": "node scripts/generate-secrets.mjs",
+    "dev": "wrangler dev --env local",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local --env local",
+    "db:migrate:production": "wrangler d1 migrations apply DB --remote --env production"
+  },
+  "dependencies": {
+    "jose": "^6.1.0",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260923.1",
+    "typescript": "^5.9.2",
+    "vitest": "^5.0.1",
+    "wrangler": "^4.137.0"
+  }
+}

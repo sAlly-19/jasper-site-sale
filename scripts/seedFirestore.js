@@ -3,10 +3,12 @@ const { getFirestore } = require("firebase-admin/firestore");
 const path = require("path");
 const fs = require("fs");
 
-const serviceAccountPath = path.resolve(__dirname, "../jasper-avatar-firebase-adminsdk-fbsvc-fa198bd099.json");
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH
+  ? path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT_PATH)
+  : "";
 
-if (!fs.existsSync(serviceAccountPath)) {
-  console.error("ERRO: Arquivo de credencial administrativa não encontrado em:", serviceAccountPath);
+if (!serviceAccountPath || !fs.existsSync(serviceAccountPath)) {
+  console.error("ERRO: defina FIREBASE_SERVICE_ACCOUNT_PATH com o caminho da conta de serviço.");
   process.exit(1);
 }
 
@@ -28,16 +30,16 @@ const initialSiteConfig = {
     final: true,
   },
   media: {
-    heroAvatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
-    hud: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
+    heroAvatar: "/assets/screenshots/01_avatar_hud.png",
+    hud: "/assets/screenshots/02_autonomy_modules.png",
   },
   prices: {
-    BRL: 1990,
+    BRL: 497,
     USD: 149,
     EUR: 129,
-    BRL_original: 4990,
-    USD_original: 499,
-    EUR_original: 449,
+    BRL_original: 497,
+    USD_original: 149,
+    EUR_original: 129,
   },
   content: {
     "hero.eyebrow": {
@@ -57,11 +59,11 @@ const initialSiteConfig = {
     },
     "hero.subtitle": {
       "pt-BR":
-        "Jasper é um avatar 3D que conversa por voz em tempo real, enxerga sua tela, executa código e pilota 17 módulos de autonomia — 100% local, zero-trust e seu para sempre.",
+        "Jasper é um avatar 3D que conversa por voz em tempo real, analisa sua tela com consentimento e pilota 17 módulos de autonomia no Windows.",
       en:
-        "Jasper is a 3D avatar that talks in real time, sees your screen, runs code and pilots 17 autonomy modules — 100% local, zero-trust, and yours forever.",
+        "Jasper is a 3D avatar that talks in real time, analyzes your screen with consent, and runs 17 autonomy modules on Windows.",
       es:
-        "Jasper es un avatar 3D que conversa en tiempo real, ve tu pantalla, ejecuta código y pilota 17 módulos de autonomía — 100% local, zero-trust y tuyo para siempre.",
+        "Jasper es un avatar 3D que conversa en tiempo real, analiza tu pantalla con consentimiento y ejecuta 17 módulos de autonomía en Windows.",
     },
     "hero.cta": {
       "pt-BR": "GARANTIR ACESSO VITALÍCIO",
@@ -151,9 +153,9 @@ const initialSiteConfig = {
       es: "ACTIVAR ACCESO DE POR VIDA",
     },
     "pricing.guarantee": {
-      "pt-BR": "Garantia de 14 dias · Todos os updates incluídos · 1 licença por máquina",
-      en: "14-day guarantee · Updates included · 1 license per machine",
-      es: "Garantía de 14 días · Actualizaciones incluidas · 1 licencia por máquina",
+      "pt-BR": "Garantia de 7 dias · Todos os updates incluídos · 1 licença por máquina",
+      en: "7-day guarantee · Updates included · 1 license per machine",
+      es: "Garantía de 7 días · Actualizaciones incluidas · 1 licencia por máquina",
     },
     "pricing.included.1": {
       "pt-BR": "Avatar 3D com lip-sync em tempo real e 17 módulos de autonomia",
@@ -220,15 +222,15 @@ const initialSiteConfig = {
       },
       {
         q: "Preciso pagar por alguma API?",
-        a: "Apenas uma chave gratuita do Google Gemini via AI Studio. Todos os 17 módulos de autonomia rodam 100% localmente, sem custo adicional.",
+        a: "Uma chave do Google Gemini via AI Studio é necessária para a conversa por voz. Os módulos locais não exigem uma assinatura adicional do Jasper.",
       },
       {
         q: "Funciona sem internet?",
-        a: "O raciocínio avançado usa o Gemini via internet. Wake word, memória semântica, monitoramento de hardware e execução de código rodam localmente.",
+        a: "O raciocínio avançado usa o Gemini via internet. Wake word, memória semântica e monitoramento de hardware rodam localmente. A licença pode ficar até 72 horas sem nova verificação.",
       },
       {
         q: "Como recebo minha chave de acesso?",
-        a: "Após a ativação, você recebe por e-mail e WhatsApp uma chave JASPER-LT exclusiva para liberar o HUD na sua máquina.",
+        a: "Após a aprovação do pagamento, suas chaves aparecem na tela de confirmação. Cada chave libera o HUD em uma máquina.",
       },
     ],
     en: [
@@ -238,15 +240,15 @@ const initialSiteConfig = {
       },
       {
         q: "Do I need to pay for any API?",
-        a: "Only a free Google Gemini key via AI Studio. All 17 autonomy modules run 100% locally at no extra cost.",
+        a: "A Google Gemini key from AI Studio is required for voice conversations. Local modules do not require an additional Jasper subscription.",
       },
       {
         q: "Does it work offline?",
-        a: "Advanced reasoning uses Gemini over the internet. Wake word, semantic memory, hardware monitoring and code execution all run locally.",
+        a: "Advanced reasoning uses Gemini over the internet. Wake word, semantic memory and hardware monitoring run locally. The license can remain offline for up to 72 hours between checks.",
       },
       {
         q: "How do I get my access key?",
-        a: "After activation you receive a unique JASPER-LT key by email and WhatsApp to unlock the HUD on your machine.",
+        a: "After payment approval, your keys appear on the confirmation screen. Each key unlocks the HUD on one machine.",
       },
     ],
     es: [
@@ -256,48 +258,18 @@ const initialSiteConfig = {
       },
       {
         q: "¿Necesito pagar por alguna API?",
-        a: "Solo una clave gratuita de Google Gemini en AI Studio. Todos los 17 módulos de autonomía se ejecutan 100% localmente sin coste adicional.",
+        a: "Se necesita una clave de Google Gemini de AI Studio para las conversaciones de voz. Los módulos locales no requieren otra suscripción de Jasper.",
       },
       {
         q: "¿Funciona sin internet?",
-        a: "El razonamiento avanzado utiliza Gemini por internet. Wake word, memoria semántica, monitorización y ejecución de código funcionan de forma local.",
+        a: "El razonamiento avanzado utiliza Gemini por internet. Wake word, memoria semántica y monitorización funcionan de forma local. La licencia puede permanecer hasta 72 horas sin una nueva verificación.",
       },
       {
         q: "¿Cómo recibo mi clave de acceso?",
-        a: "Tras la activación recibirás por correo y WhatsApp una clave JASPER-LT única para desbloquear el HUD en tu máquina.",
+        a: "Tras aprobarse el pago, tus claves aparecen en la pantalla de confirmación. Cada clave desbloquea el HUD en una máquina.",
       },
     ],
   },
-};
-
-const initialPromo = {
-  id: "promo_launch",
-  code: "LIFETIME50",
-  discountPercent: 50,
-  active: true,
-  endsAt: new Date(Date.now() + 86400000 * 5).toISOString(),
-  title: {
-    "pt-BR": "🔥 Oferta de Lançamento: 50% de desconto vitalício",
-    en: "🔥 Launch Offer: 50% lifetime discount",
-    es: "🔥 Oferta de Lanzamiento: 50% de descuento de por vida",
-  },
-  createdAt: new Date().toISOString(),
-};
-
-const initialKey = {
-  id: "key_dev_master",
-  name: "Alisson Santos",
-  email: "alisson@example.com",
-  whatsapp: "+55 11 99999 8888",
-  key: "JASPER-LT-7A4F-88E1-99B2",
-  status: "active",
-  notes: "Licença Master Developer (Node-Locked)",
-  createdAt: new Date().toISOString(),
-  invalidatedAt: null,
-  machineId: "HWID-8F92-A7C1-44B0",
-  machineName: "DESKTOP-MASTER",
-  activatedAt: new Date().toISOString(),
-  lastSeenAt: new Date().toISOString(),
 };
 
 async function seedFirestore() {
@@ -308,16 +280,6 @@ async function seedFirestore() {
     console.log("Salvando 'site_config/landing_page'...");
     await db.collection("site_config").doc("landing_page").set(initialSiteConfig, { merge: true });
     console.log("✓ site_config/landing_page configurado com sucesso!");
-
-    // 2. Promoção ativa inicial
-    console.log("Criando promoção inicial 'promotions/promo_launch'...");
-    await db.collection("promotions").doc("promo_launch").set(initialPromo, { merge: true });
-    console.log("✓ Promoção 'LIFETIME50' (50% OFF) criada com sucesso!");
-
-    // 3. Licença de demonstração inicial
-    console.log(`Criando licença inicial 'licenses/${initialKey.key}'...`);
-    await db.collection("licenses").doc(initialKey.key).set(initialKey, { merge: true });
-    console.log("✓ Licença inicial criada com sucesso!");
 
     console.log("\n=======================================================");
     console.log(" BANCO DE DADOS FIRESTORE PRONTO E POVOADO COM SUCESSO! ");

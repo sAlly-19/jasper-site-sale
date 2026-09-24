@@ -11,31 +11,13 @@ import { AdminUser } from "@/types/auth";
 /**
  * Verifica se um usuário autenticado possui permissão de administrador:
  * 1. Custom Claim 'admin: true' no token JWT do Firebase Auth
- * 2. Registro do UID na coleção 'admins' do Firestore
- * 3. Registro do E-mail na coleção 'admins' do Firestore
+ * 2. Registro ativo do UID na coleção 'admins' do Firestore
  */
 export async function verifyAdminStatus(user: User): Promise<boolean> {
   try {
     const idTokenResult = await user.getIdTokenResult();
-    if (idTokenResult.claims.admin === true) {
-      return true;
-    }
-
-    // Consulta na coleção admins pelo UID
     const adminByUid = await getDoc(doc(db, "admins", user.uid));
-    if (adminByUid.exists() && adminByUid.data()?.role !== "revoked") {
-      return true;
-    }
-
-    // Consulta na coleção admins pelo E-mail
-    if (user.email) {
-      const adminByEmail = await getDoc(doc(db, "admins", user.email.toLowerCase()));
-      if (adminByEmail.exists() && adminByEmail.data()?.role !== "revoked") {
-        return true;
-      }
-    }
-
-    return false;
+    return idTokenResult.claims.admin === true && adminByUid.exists() && adminByUid.data()?.active === true;
   } catch (err) {
     console.error("Erro ao verificar status de administrador no Firestore:", err);
     return false;

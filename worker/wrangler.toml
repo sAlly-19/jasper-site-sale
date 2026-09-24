@@ -1,0 +1,76 @@
+name = "jasper-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[vars]
+ENVIRONMENT = "local"
+FIREBASE_PROJECT_ID = "demo-jasper-local"
+ALLOWED_ORIGINS = "http://localhost:8081,http://localhost:19006"
+PUBLIC_SITE_URL = "http://localhost:8081"
+API_PUBLIC_URL = "http://localhost:8787"
+MERCADO_PAGO_API_URL = "https://api.mercadopago.com"
+MERCADO_PAGO_LIVE_MODE = "false"
+LEASE_TTL_SECONDS = "259200"
+WEBHOOK_MAX_SKEW_SECONDS = "600"
+MAX_ORDER_QUANTITY = "20"
+PRODUCT_PRICE_BRL_CENTS = "49700"
+PRODUCT_PRICE_USD_CENTS = "14900"
+PRODUCT_PRICE_EUR_CENTS = "12900"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jasper-local"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[env.local]
+name = "jasper-api-local"
+
+[env.local.vars]
+ENVIRONMENT = "local"
+FIREBASE_PROJECT_ID = "demo-jasper-local"
+ALLOWED_ORIGINS = "http://localhost:8081,http://localhost:19006"
+PUBLIC_SITE_URL = "http://localhost:8081"
+API_PUBLIC_URL = "http://localhost:8787"
+MERCADO_PAGO_API_URL = "https://api.mercadopago.com"
+MERCADO_PAGO_LIVE_MODE = "false"
+LEASE_TTL_SECONDS = "259200"
+WEBHOOK_MAX_SKEW_SECONDS = "600"
+MAX_ORDER_QUANTITY = "20"
+PRODUCT_PRICE_BRL_CENTS = "49700"
+PRODUCT_PRICE_USD_CENTS = "14900"
+PRODUCT_PRICE_EUR_CENTS = "12900"
+
+[[env.local.d1_databases]]
+binding = "DB"
+database_name = "jasper-local"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[env.production]
+name = "jasper-api-production"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+FIREBASE_PROJECT_ID = "REPLACE_WITH_EXISTING_FIREBASE_PROJECT_ID"
+ALLOWED_ORIGINS = "https://REPLACE_WITH_PRODUCTION_HOST"
+PUBLIC_SITE_URL = "https://REPLACE_WITH_PRODUCTION_HOST"
+API_PUBLIC_URL = "https://REPLACE_WITH_PRODUCTION_WORKER_HOST"
+MERCADO_PAGO_API_URL = "https://api.mercadopago.com"
+MERCADO_PAGO_LIVE_MODE = "true"
+LEASE_TTL_SECONDS = "259200"
+WEBHOOK_MAX_SKEW_SECONDS = "600"
+MAX_ORDER_QUANTITY = "20"
+PRODUCT_PRICE_BRL_CENTS = "49700"
+PRODUCT_PRICE_USD_CENTS = "14900"
+PRODUCT_PRICE_EUR_CENTS = "12900"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "REPLACE_WITH_PRODUCTION_D1_NAME"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["17 3 * * *"]
