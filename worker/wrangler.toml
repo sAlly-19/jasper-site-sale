@@ -53,10 +53,10 @@ name = "jasper-api-production"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-FIREBASE_PROJECT_ID = "REPLACE_WITH_EXISTING_FIREBASE_PROJECT_ID"
-ALLOWED_ORIGINS = "https://REPLACE_WITH_PRODUCTION_HOST"
-PUBLIC_SITE_URL = "https://REPLACE_WITH_PRODUCTION_HOST"
-API_PUBLIC_URL = "https://REPLACE_WITH_PRODUCTION_WORKER_HOST"
+FIREBASE_PROJECT_ID = "jasper-avatar"
+ALLOWED_ORIGINS = "https://jasper-avatar.web.app,https://jasper-avatar.firebaseapp.com"
+PUBLIC_SITE_URL = "https://jasper-avatar.web.app"
+API_PUBLIC_URL = "https://jasper-api-production.jasper-avatar.workers.dev"
 MERCADO_PAGO_API_URL = "https://api.mercadopago.com"
 MERCADO_PAGO_LIVE_MODE = "true"
 LEASE_TTL_SECONDS = "259200"
@@ -68,8 +68,8 @@ PRODUCT_PRICE_EUR_CENTS = "12900"
 
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "REPLACE_WITH_PRODUCTION_D1_NAME"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_name = "jasper-production"
+database_id = "8ba116f0-a97c-435d-b9cd-9dc874b9bcd9"
 migrations_dir = "migrations"
 
 [triggers]

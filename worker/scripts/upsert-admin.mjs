@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const [target, uid, email, confirmation] = process.argv.slice(2);
 if (!['local', 'production'].includes(target) || !/^[A-Za-z0-9_-]{6,128}$/.test(uid || '')) {
@@ -18,10 +19,13 @@ const now = new Date().toISOString();
 const sql = `INSERT INTO admins (uid, email, role, status, created_at, updated_at)
 VALUES ('${uid}', '${email.toLowerCase()}', 'admin', 'active', '${now}', '${now}')
 ON CONFLICT(uid) DO UPDATE SET email = excluded.email, status = 'active', updated_at = excluded.updated_at;`;
-const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 const location = target === 'production' ? '--remote' : '--local';
-const result = spawnSync(npx, ['wrangler', 'd1', 'execute', 'DB', '--env', target, location, '--command', sql], {
+const wrangler = fileURLToPath(new URL('../node_modules/wrangler/bin/wrangler.js', import.meta.url));
+const result = spawnSync(process.execPath, [wrangler, 'd1', 'execute', 'DB', '--env', target, location, '--command', sql], {
   cwd: new URL('..', import.meta.url),
   stdio: 'inherit',
 });
+if (result.error) {
+  console.error('Falha ao iniciar o Wrangler:', result.error.message);
+}
 process.exit(result.status ?? 1);

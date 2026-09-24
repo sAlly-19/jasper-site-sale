@@ -50,7 +50,22 @@ export async function createPreference(env: Env, input: PreferenceInput): Promis
     }),
   });
 
-  if (!response.ok) throw new HttpError(502, 'payment_provider_error', 'Não foi possível iniciar o checkout.');
+  if (!response.ok) {
+    const providerError = await response.json().catch(() => null) as {
+      error?: string;
+      message?: string;
+      status?: number;
+      cause?: Array<{ code?: string; description?: string }>;
+    } | null;
+    console.error('[MercadoPago] Preference creation rejected', {
+      httpStatus: response.status,
+      error: providerError?.error,
+      message: providerError?.message,
+      status: providerError?.status,
+      cause: providerError?.cause?.map(({ code, description }) => ({ code, description })).slice(0, 10),
+    });
+    throw new HttpError(502, 'payment_provider_error', 'Não foi possível iniciar o checkout.');
+  }
   const data = await response.json() as { id?: string; init_point?: string; sandbox_init_point?: string };
   const checkoutUrl = env.MERCADO_PAGO_LIVE_MODE === 'true' ? data.init_point : data.sandbox_init_point || data.init_point;
   if (!data.id || !checkoutUrl || !isMercadoPagoCheckoutUrl(checkoutUrl)) {
