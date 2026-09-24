@@ -15,6 +15,7 @@
   ],
   "exclude": [
     "node_modules",
-    "_extracted_zip"
+    "_extracted_zip",
+    "worker"
   ]
 }

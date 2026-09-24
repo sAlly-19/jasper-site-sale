@@ -59,9 +59,6 @@ const PRICE_FIELDS: [string, string][] = [
   ["BRL", "Lifetime price · BRL"],
   ["USD", "Lifetime price · USD"],
   ["EUR", "Lifetime price · EUR"],
-  ["BRL_original", "Original price · BRL"],
-  ["USD_original", "Original price · USD"],
-  ["EUR_original", "Original price · EUR"],
 ];
 
 const MEDIA_FIELDS: [keyof Media, string][] = [
@@ -108,8 +105,6 @@ export function CmsPanel({ notify }: { notify: (m: string, t?: "ok" | "err") => 
     setData((d) => d && { ...d, sections: { ...d.sections, [key]: val } });
   const setMedia = (key: keyof Media, value: string) =>
     setData((d) => d && { ...d, media: { ...d.media, [key]: value } });
-  const setPrice = (key: string, value: number) =>
-    setData((d) => d && { ...d, prices: { ...d.prices, [key]: value } });
   const setFaqItem = (idx: number, field: "q" | "a", value: string) =>
     setData((d) => {
       if (!d) return d;
@@ -133,7 +128,6 @@ export function CmsPanel({ notify }: { notify: (m: string, t?: "ok" | "err") => 
         content: data.content,
         sections: data.sections,
         media: data.media,
-        prices: data.prices,
         faq: data.faq,
       });
       setSaved(JSON.stringify(data));
@@ -266,6 +260,9 @@ export function CmsPanel({ notify }: { notify: (m: string, t?: "ok" | "err") => 
             </div>
 
             <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-neon mt-8 mb-5">Prices (lifetime)</p>
+            <p className="text-xs text-mist mb-4">
+              Read-only checkout values. Change them in the Worker configuration and redeploy the API after review.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               {PRICE_FIELDS.map(([key, label]) => (
                 <div key={key}>
@@ -275,7 +272,8 @@ export function CmsPanel({ notify }: { notify: (m: string, t?: "ok" | "err") => 
                     type="number"
                     min={0}
                     value={data.prices[key] ?? 0}
-                    onChange={(e) => setPrice(key, Number(e.target.value))}
+                    readOnly
+                    disabled
                   />
                 </div>
               ))}

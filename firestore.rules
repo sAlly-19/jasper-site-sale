@@ -1,65 +1,34 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Função de verificação de administrador autorizado
-    // O usuário precisa estar autenticado no Firebase Auth E ter o token de admin ou constar na coleção 'admins'
     function isAdmin() {
-      return request.auth != null && (
-        request.auth.token.admin == true ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
-      );
+      return request.auth != null &&
+        request.auth.token.admin == true &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.active == true;
     }
 
-    // 1. Configurações da Landing Page (CMS)
-    // Leitura pública para carregar textos, mídias e seções.
-    // Gravação EXCLUSIVA para administradores autenticados e autorizados.
-    match /site_config/{document=**} {
+    match /site_config/landing_page {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // 2. Campanhas Promocionais e Cupons
-    // Leitura pública para exibir banner de desconto ativo.
-    // Gravação EXCLUSIVA para administradores autorizados.
-    match /promotions/{document=**} {
-      allow read: if true;
-      allow write: if isAdmin();
+    // Operational data is served only by the Cloudflare Worker and D1.
+    match /licenses/{licenseId} {
+      allow read, write: if false;
     }
 
-    // 3. Licenças e Chaves de Clientes (Validação e Node-Locking Nativo sem Cloud Functions)
-    match /licenses/{licenseKey} {
-      // Administrador tem controle total (criar, editar, listar, excluir, revogar, desvincular)
-      allow read, write: if isAdmin();
-
-      // Jasper Desktop (Cliente sem privilégios de Admin):
-      // - allow get: permite ler APENAS o documento da sua própria chave específica (busca direta por ID/Key)
-      // - allow list: bloqueado para não-admins (impede varredura, enumeração ou vazamento de chaves de terceiros)
-      allow get: if true;
-      allow list: if isAdmin();
-
-      // Node-Locking Estrito no Firestore:
-      // Permite ao Desktop vincular o HWID na primeira ativação ou atualizar heartbeat (lastSeenAt) na mesma máquina.
-      // Impede adulteração de chave, nome, e-mail ou status, e impede ativação em uma segunda máquina.
-      allow update: if 
-        resource.data.status == "active"
-        && request.resource.data.key == resource.data.key
-        && request.resource.data.email == resource.data.email
-        && request.resource.data.name == resource.data.name
-        && request.resource.data.status == resource.data.status
-        && (
-          (resource.data.machineId == null || resource.data.machineId == "")
-          || (resource.data.machineId == request.resource.data.machineId)
-        );
+    match /promotions/{promotionId} {
+      allow read, write: if false;
     }
 
-    // 4. Coleção de Administradores Autorizados (Whitelist)
-    // Leitura permitida para usuários autenticados verificarem seu próprio status.
-    // Gravação bloqueada para clientes (gerenciada via Firebase Admin SDK / Console).
     match /admins/{adminId} {
-      allow read: if request.auth != null;
-      allow write: if false;
+      allow get: if request.auth != null && request.auth.uid == adminId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

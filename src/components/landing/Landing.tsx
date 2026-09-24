@@ -13,6 +13,7 @@ import {
 } from "@/lib/content";
 import { useParallaxEngine, useRevealEngine } from "@/components/motion";
 import { fetchLandingData } from "@/services/firestoreAdminService";
+import { createCheckoutOrder, getCheckoutOrder, type CheckoutOrder } from "@/services/workerApi";
 
 /* ------------------------------------------------------------------ */
 /*  Small UI strings not exposed to the CMS                            */
@@ -462,9 +463,41 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
-  const [buyerWhatsApp, setBuyerWhatsApp] = useState("");
-  const [pixSimulated, setPixSimulated] = useState(false);
-  const [orderDone, setOrderDone] = useState(false);
+  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
+  const [pendingCheckout, setPendingCheckout] = useState<CheckoutOrder | null>(null);
+  const [paymentResult, setPaymentResult] = useState<{ status: string; licenses?: string[]; error?: string } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("order");
+    const paymentState = params.get("payment");
+    if (!orderId || !paymentState) return;
+    const token = window.sessionStorage.getItem(`jasper_order_${orderId}`);
+    if (!token) {
+      setPaymentResult({ status: paymentState, error: "Não foi possível recuperar este pedido nesta sessão." });
+      return;
+    }
+
+    let cancelled = false;
+    const check = async () => {
+      for (let attempt = 0; attempt < 12 && !cancelled; attempt += 1) {
+        try {
+          const order = await getCheckoutOrder(orderId, token) as { status?: string; licenses?: string[] };
+          const status = order.status || paymentState;
+          setPaymentResult({ status, licenses: order.licenses });
+          if (status === "paid" || ["rejected", "cancelled", "refunded", "charged_back", "failed"].includes(status)) return;
+        } catch (error) {
+          setPaymentResult({ status: paymentState, error: error instanceof Error ? error.message : "Falha ao consultar o pedido." });
+          return;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+      }
+    };
+    void check();
+    return () => { cancelled = true; };
+  }, []);
 
   const base = data.prices[currency] ?? data.prices.USD;
   const original = data.prices[`${currency}_original`] ?? data.prices.USD_original;
@@ -487,9 +520,71 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
     setPromoGone(true);
   };
 
+  const startCheckout = async () => {
+    const cleanName = buyerName.trim();
+    const cleanEmail = buyerEmail.trim().toLowerCase();
+    if (cleanName.length < 2 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setCheckoutError("Informe um nome e um e-mail válidos.");
+      return;
+    }
+
+    setCheckoutBusy(true);
+    setCheckoutError("");
+    try {
+      const order = await createCheckoutOrder({
+        buyerName: cleanName,
+        buyerEmail: cleanEmail,
+        quantity,
+        promotionCode: data.promo?.code,
+      });
+      window.sessionStorage.setItem(`jasper_order_${order.orderId}`, order.accessToken);
+      setPendingCheckout(order);
+      setCheckoutBusy(false);
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : "Não foi possível iniciar o pagamento.");
+      setCheckoutBusy(false);
+    }
+  };
+
   const promoTitle = data.promo
     ? (data.promo.title[locale] || data.promo.title.en || "")
     : "";
+
+  const checkoutCopy = {
+    "pt-BR": {
+      regionalTotal: "Preço exibido",
+      verifiedTotal: "Valor confirmado pelo servidor",
+      settlement: "O Mercado Pago processará esta compra em reais (BRL). Seu banco poderá converter o valor na fatura.",
+      review: "Revisar dados",
+      continue: "Continuar para o Mercado Pago",
+      create: "Confirmar valor no servidor",
+      creating: "Confirmando valor...",
+    },
+    en: {
+      regionalTotal: "Displayed price",
+      verifiedTotal: "Server-confirmed amount",
+      settlement: "Mercado Pago will process this purchase in Brazilian reais (BRL). Your bank may convert the amount on your statement.",
+      review: "Review details",
+      continue: "Continue to Mercado Pago",
+      create: "Confirm amount on server",
+      creating: "Confirming amount...",
+    },
+    es: {
+      regionalTotal: "Precio mostrado",
+      verifiedTotal: "Importe confirmado por el servidor",
+      settlement: "Mercado Pago procesará esta compra en reales brasileños (BRL). Tu banco podrá convertir el importe en el extracto.",
+      review: "Revisar datos",
+      continue: "Continuar a Mercado Pago",
+      create: "Confirmar importe en el servidor",
+      creating: "Confirmando importe...",
+    },
+  }[locale];
+
+  const closeCheckout = () => {
+    setCheckoutOpen(false);
+    setCheckoutError("");
+    setPendingCheckout(null);
+  };
 
   const s = data.sections;
 
@@ -588,6 +683,10 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
               alt="Jasper 3D avatar"
               className="w-[min(64vw,1080px)] select-none"
               draggable={false}
+              onError={(event) => {
+                const image = event.currentTarget;
+                if (!image.src.endsWith(defaultMedia.heroAvatar)) image.src = defaultMedia.heroAvatar;
+              }}
             />
           </div>
 
@@ -686,7 +785,15 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
             </div>
             <div className="relative">
               <div data-plx="0.13" className="glass-deep hud-frame scanlines rounded-2xl p-3 overflow-hidden glow-neon">
-                <img src={data.media.hud} alt="Jasper HUD interface" className="rounded-xl w-full" />
+                <img
+                  src={data.media.hud}
+                  alt="Jasper HUD interface"
+                  className="rounded-xl w-full"
+                  onError={(event) => {
+                    const image = event.currentTarget;
+                    if (!image.src.endsWith(defaultMedia.hud)) image.src = defaultMedia.hud;
+                  }}
+                />
               </div>
               <div data-depth="20" className="absolute -top-5 -right-3">
                 <div className="glass rounded-full px-4 py-2 font-mono text-[10px] tracking-[0.25em] text-lime flex items-center gap-2">
@@ -772,7 +879,7 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
                 {[
                   { icon: "lock", title: "DPAPI", d: { "pt-BR": "Credenciais cifradas no disco", en: "Credentials encrypted on disk", es: "Credenciales cifradas en disco" } },
                   { icon: "firewall", title: "ANTI-SSRF", d: { "pt-BR": "Firewall em webhooks e rede", en: "Firewall on webhooks and network", es: "Firewall en webhooks y red" } },
-                  { icon: "sandbox", title: "SANDBOX", d: { "pt-BR": "Execução isolada de código", en: "Isolated code execution", es: "Ejecución aislada de código" } },
+                  { icon: "shield", title: "ALLOWLIST", d: { "pt-BR": "Automação limitada por políticas", en: "Automation constrained by policy", es: "Automatización limitada por políticas" } },
                   { icon: "check", title: "APPROVAL", d: { "pt-BR": "Alto risco pede OK na tela", en: "High-risk demands on-screen OK", es: "Alto riesgo pide OK en pantalla" } },
                 ].map((it, i) => (
                   <div
@@ -899,9 +1006,11 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
                     {formatMoney(finalPrice, currency, meta.intl)}
                   </span>
                   <div className="pb-2">
-                    <span className="block font-mono text-sm text-mist/60 line-through">
-                      {formatMoney(originalTotal, currency, meta.intl)}
-                    </span>
+                    {originalTotal > finalPrice && (
+                      <span className="block font-mono text-sm text-mist/60 line-through">
+                        {formatMoney(originalTotal, currency, meta.intl)}
+                      </span>
+                    )}
                     {totalDiscount > 0 && (
                       <span className="font-mono text-[11px] text-lime tracking-[0.2em] font-semibold">
                         −{totalDiscount}% {ui.off}
@@ -951,7 +1060,10 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
 
                 <button
                   type="button"
-                  onClick={() => setCheckoutOpen(true)}
+                  onClick={() => {
+                    setPendingCheckout(null);
+                    setCheckoutOpen(true);
+                  }}
                   className="btn-neon w-full mt-10 text-sm px-8 py-5 rounded-2xl tracking-[0.08em] shadow-[0_0_30px_rgba(63,242,255,0.2)] cursor-pointer flex items-center justify-center gap-2"
                 >
                   {quantity > 1 ? `EQUIPAR ${quantity} COMPUTADORES AGORA` : t("pricing.cta")}
@@ -1052,10 +1164,37 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
       </footer>
 
       {/* ---------------- CHECKOUT MODAL ---------------- */}
+      {paymentResult && (
+        <div className="fixed inset-0 z-[60] bg-abyss/90 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="glass-deep hud-frame rounded-2xl p-6 max-w-lg w-full border border-neon/40">
+            <h3 className="font-display font-bold text-xl text-frost">
+              {paymentResult.status === "paid" ? "Pagamento confirmado" : "Acompanhando pagamento"}
+            </h3>
+            <p className="text-sm text-mist mt-2">
+              {paymentResult.error || (paymentResult.status === "paid"
+                ? "Suas licenças estão prontas. Guarde cada chave em local seguro."
+                : "O Mercado Pago ainda não confirmou o pagamento. Esta tela será atualizada automaticamente.")}
+            </p>
+            {paymentResult.licenses && paymentResult.licenses.length > 0 && (
+              <div className="mt-5 space-y-2">
+                {paymentResult.licenses.map((license) => (
+                  <div key={license} className="font-mono text-xs text-neon bg-black/40 border border-neon/20 rounded-lg p-3 select-all break-all">
+                    {license}
+                  </div>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={() => setPaymentResult(null)} className="btn-neon w-full rounded-xl py-3 mt-6 text-xs uppercase tracking-widest">
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
       {checkoutOpen && (
         <div
           className="fixed inset-0 z-50 bg-abyss/85 backdrop-blur-xl flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setCheckoutOpen(false)}
+          onClick={closeCheckout}
         >
           <div
             className="glass-deep hud-frame scanlines rounded-3xl p-6 sm:p-8 max-w-lg w-full relative border border-neon/40 shadow-[0_0_60px_rgba(63,242,255,0.2)] my-8"
@@ -1064,11 +1203,7 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
             {/* Botão Fechar */}
             <button
               type="button"
-              onClick={() => {
-                setCheckoutOpen(false);
-                setPixSimulated(false);
-                setOrderDone(false);
-              }}
+              onClick={closeCheckout}
               className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/5 border border-white/10 text-mist hover:text-frost hover:bg-white/15 flex items-center justify-center transition-colors font-mono text-base cursor-pointer"
               aria-label="Fechar"
             >
@@ -1114,7 +1249,7 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
               )}
               <div className="flex justify-between items-baseline pt-2.5 mt-2 border-t border-white/10">
                 <div>
-                  <span className="font-display text-sm font-bold text-frost block">Total a Pagar:</span>
+                  <span className="font-display text-sm font-bold text-frost block">{checkoutCopy.regionalTotal}:</span>
                   {quantity > 1 && (
                     <span className="text-[11px] font-mono text-mist">
                       {formatMoney(unitPrice, currency, meta.intl)} / máquina
@@ -1127,105 +1262,81 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
               </div>
             </div>
 
-            {/* Formulário de Identificação */}
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block font-mono text-[11px] text-mist uppercase tracking-wider mb-1.5">
-                  Seu Nome Completo ou Empresa *
-                </label>
-                <input
-                  type="text"
-                  value={buyerName}
-                  onChange={(e) => setBuyerName(e.target.value)}
-                  placeholder="Ex: Carlos Eduardo"
-                  className="w-full bg-void/70 border border-white/15 rounded-xl px-4 py-3 text-sm text-frost focus:border-neon focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block font-mono text-[11px] text-mist uppercase tracking-wider mb-1.5">
-                  Seu E-mail (para envio das chaves) *
-                </label>
-                <input
-                  type="email"
-                  value={buyerEmail}
-                  onChange={(e) => setBuyerEmail(e.target.value)}
-                  placeholder="carlos@exemplo.com"
-                  className="w-full bg-void/70 border border-white/15 rounded-xl px-4 py-3 text-sm text-frost focus:border-neon focus:outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block font-mono text-[11px] text-mist uppercase tracking-wider mb-1.5">
-                  WhatsApp com DDD (para liberação rápida)
-                </label>
-                <input
-                  type="tel"
-                  value={buyerWhatsApp}
-                  onChange={(e) => setBuyerWhatsApp(e.target.value)}
-                  placeholder="Ex: (11) 98765-4321"
-                  className="w-full bg-void/70 border border-white/15 rounded-xl px-4 py-3 text-sm text-frost focus:border-neon focus:outline-none transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Botões de Ação */}
-            <div className="space-y-3">
-              <a
-                href={`https://wa.me/5511999998888?text=${encodeURIComponent(
-                  `Olá! Gostaria de finalizar a aquisição do Jasper Avatar HUD.\n\n` +
-                    `👤 Nome: ${buyerName || "Cliente"}\n` +
-                    `📧 E-mail: ${buyerEmail || "Não informado"}\n` +
-                    `📱 WhatsApp: ${buyerWhatsApp || "Não informado"}\n` +
-                    `🖥️ Quantidade: ${quantity} computador(es) / licença(s)\n` +
-                    `💰 Valor Total: ${formatMoney(finalPrice, currency, meta.intl)}\n\n` +
-                    `Por favor, me envie as instruções de pagamento e a ativação das minhas ${quantity} chave(s)!`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setOrderDone(true)}
-                className="btn-neon w-full py-4 text-xs font-bold tracking-widest uppercase rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(63,242,255,0.25)]"
-              >
-                <span>Finalizar Pedido via WhatsApp</span>
-                <Icon name="arrow" className="w-4 h-4" />
-              </a>
-
-              {currency === "BRL" && (
+            {pendingCheckout ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-lime/30 bg-lime/[0.06] p-4">
+                  <span className="block font-mono text-[10px] uppercase tracking-wider text-lime">
+                    {checkoutCopy.verifiedTotal}
+                  </span>
+                  <strong className="mt-2 block font-display text-3xl text-frost">
+                    {formatMoney(pendingCheckout.totalAmount / 100, pendingCheckout.currency, "pt-BR")}
+                  </strong>
+                  <p className="mt-2 text-xs leading-relaxed text-mist">{checkoutCopy.settlement}</p>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setPixSimulated(!pixSimulated)}
-                  className="w-full py-3 text-xs font-mono text-frost hover:bg-white/5 border border-white/15 rounded-xl transition-all cursor-pointer"
+                  onClick={() => window.location.assign(pendingCheckout.checkoutUrl)}
+                  className="btn-neon w-full py-4 text-xs font-bold tracking-widest uppercase rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(63,242,255,0.25)]"
                 >
-                  {pixSimulated ? "Ocultar Chave Pix" : "Pagar via Pix (Chave Copia e Cola)"}
+                  <span>{checkoutCopy.continue}</span>
+                  <Icon name="arrow" className="w-4 h-4" />
                 </button>
-              )}
-
-              {pixSimulated && (
-                <div className="p-4 rounded-xl bg-void/90 border border-lime/40 text-left font-mono text-xs space-y-2.5">
-                  <div className="flex justify-between items-center text-lime font-bold">
-                    <span>CHAVE PIX (E-MAIL OFICIAL)</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (typeof navigator !== "undefined") {
-                          navigator.clipboard.writeText("financeiro@jasperavatar.com");
-                          alert("Chave Pix copiada!");
-                        }
-                      }}
-                      className="text-[10px] bg-lime/20 px-2.5 py-1 rounded text-lime hover:bg-lime/30 uppercase cursor-pointer border border-lime/40"
-                    >
-                      Copiar Chave
-                    </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingCheckout(null)}
+                  className="w-full py-3 text-xs font-mono text-mist hover:text-frost transition-colors"
+                >
+                  {checkoutCopy.review}
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Formulário de Identificação */}
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <label className="block font-mono text-[11px] text-mist uppercase tracking-wider mb-1.5">
+                      Seu Nome Completo ou Empresa *
+                    </label>
+                    <input
+                      type="text"
+                      value={buyerName}
+                      onChange={(e) => setBuyerName(e.target.value)}
+                      placeholder="Ex: Carlos Eduardo"
+                      className="w-full bg-void/70 border border-white/15 rounded-xl px-4 py-3 text-sm text-frost focus:border-neon focus:outline-none transition-colors"
+                    />
                   </div>
-                  <p className="text-frost select-all break-all bg-black/50 p-2.5 rounded border border-white/10 text-[12px] font-semibold">
-                    financeiro@jasperavatar.com
-                  </p>
-                  <p className="text-[11px] text-mist leading-normal">
-                    Após o pagamento de <strong>{formatMoney(finalPrice, currency, meta.intl)}</strong>, envie o comprovante para nosso WhatsApp para receber suas {quantity} chave(s) de ativação imediatamente.
+
+                  <div>
+                    <label className="block font-mono text-[11px] text-mist uppercase tracking-wider mb-1.5">
+                      Seu E-mail (para envio das chaves) *
+                    </label>
+                    <input
+                      type="email"
+                      value={buyerEmail}
+                      onChange={(e) => setBuyerEmail(e.target.value)}
+                      placeholder="carlos@exemplo.com"
+                      className="w-full bg-void/70 border border-white/15 rounded-xl px-4 py-3 text-sm text-frost focus:border-neon focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={startCheckout}
+                    disabled={checkoutBusy}
+                    className="btn-neon w-full py-4 text-xs font-bold tracking-widest uppercase rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_25px_rgba(63,242,255,0.25)] disabled:opacity-60 disabled:cursor-wait"
+                  >
+                    <span>{checkoutBusy ? checkoutCopy.creating : checkoutCopy.create}</span>
+                    <Icon name="arrow" className="w-4 h-4" />
+                  </button>
+                  {checkoutError && <p className="text-xs text-red-400 text-center" role="alert">{checkoutError}</p>}
+                  <p className="text-[10px] text-mist/70 text-center font-mono">
+                    {checkoutCopy.settlement}
                   </p>
                 </div>
-              )}
-            </div>
+              </>
+            )}
 
             {/* Garantia */}
             <div className="mt-6 pt-4 border-t border-white/10 text-center">

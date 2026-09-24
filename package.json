@@ -2,6 +2,10 @@
   "name": "jasper-avatar-platform",
   "version": "1.0.0",
   "main": "expo-router/entry",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11"
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,6 +13,13 @@
     "web": "expo start --web",
     "build:css": "tailwindcss -i ./src/styles/tailwind.css -o ./src/styles/compiled.css --minify",
     "build:web": "npm run build:css && expo export -p web",
+    "typecheck": "tsc --noEmit",
+    "test:rules": "npx --yes firebase-tools@15.30.2 emulators:exec --only firestore --project demo-jasper-audit \"node --test test/firestore.rules.test.mjs\"",
+    "test:visual": "node scripts/visualQa.mjs",
+    "preview:dist": "serve dist -l 4173 --no-clipboard",
+    "audit:runtime": "npm audit --omit=dev --audit-level=high",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "sbom:runtime": "npm sbom --omit=dev --sbom-format cyclonedx --sbom-type application",
     "seed": "node scripts/seedFirestore.js",
     "create-admin": "node scripts/createAdmin.js",
     "deploy:rules": "firebase deploy --only firestore:rules",
@@ -36,14 +47,25 @@
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/react": "~19.2.4",
     "@types/react-dom": "~19.2.3",
     "autoprefixer": "^10.6.1",
     "babel-preset-expo": "~57.0.12",
     "firebase-admin": "^14.4.0",
+    "playwright-core": "^1.63.0",
     "postcss": "^8.5.28",
+    "serve": "^14.2.5",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.8.2"
+  },
+  "overrides": {
+    "gaxios@6.7.1": {
+      "uuid": "11.1.1"
+    },
+    "xcode": {
+      "uuid": "11.1.1"
+    }
   },
   "private": true
 }

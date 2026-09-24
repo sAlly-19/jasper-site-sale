@@ -1,6 +1,8 @@
 import { ScrollViewStyleReset } from "expo-router/html";
 import { type PropsWithChildren } from "react";
 
+const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap";
+
 export default function Root({ children }: PropsWithChildren) {
   return (
     <html lang="pt-BR">
@@ -16,7 +18,7 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href={GOOGLE_FONTS_URL}
           rel="stylesheet"
         />
 

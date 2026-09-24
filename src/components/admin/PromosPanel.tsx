@@ -2,12 +2,14 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  fetchPromos,
-  createPromo,
-  togglePromo,
-  deletePromo,
-  type PromoRow,
-} from "@/services/firestoreAdminService";
+  createAdminPromotion,
+  deleteAdminPromotion,
+  fetchAdminPromotions,
+  setAdminPromotionActive,
+  type WorkerPromotion,
+} from "@/services/workerApi";
+
+type PromoRow = WorkerPromotion;
 
 const ERR: Record<string, string> = {
   code_invalid: "Code must be 3–24 characters, A–Z and 0–9 (e.g. LIFETIME30).",
@@ -31,8 +33,8 @@ export function PromosPanel({ notify }: { notify: (m: string, t?: "ok" | "err") 
 
   const load = useCallback(async () => {
     try {
-      const list = await fetchPromos();
-      setPromos(list);
+      const response = await fetchAdminPromotions();
+      setPromos(response.promotions);
     } catch {
       setPromos([]);
     }
@@ -63,12 +65,17 @@ export function PromosPanel({ notify }: { notify: (m: string, t?: "ok" | "err") 
       setBusy(false);
       return;
     }
+    if (!endsAt || Date.parse(endsAt) <= Date.now()) {
+      setFormError("Informe uma data final futura.");
+      setBusy(false);
+      return;
+    }
 
     try {
-      const newPromo = await createPromo({
+      const { promotion: newPromo } = await createAdminPromotion({
         code: cleanCode,
         discountPercent: discount,
-        endsAt: endsAt ? new Date(endsAt).toISOString() : null,
+        endsAt: new Date(endsAt).toISOString(),
         title: {
           "pt-BR": tPt.trim() || tEn.trim() || tEs.trim(),
           en: tEn.trim() || tPt.trim() || tEs.trim(),
@@ -83,8 +90,8 @@ export function PromosPanel({ notify }: { notify: (m: string, t?: "ok" | "err") 
       setTEs("");
       setEndsAt("");
       notify("Promotion created");
-    } catch {
-      setFormError("Erro ao gravar promoção no Firestore.");
+    } catch (error: any) {
+      setFormError(error?.message || "Erro ao gravar promoção.");
     } finally {
       setBusy(false);
     }
@@ -92,7 +99,7 @@ export function PromosPanel({ notify }: { notify: (m: string, t?: "ok" | "err") 
 
   const toggle = async (p: PromoRow) => {
     try {
-      const updated = await togglePromo(p.id, !p.active);
+      const { promotion: updated } = await setAdminPromotionActive(p.id, !p.active);
       setPromos((list) => (list || []).map((x) => (x.id === p.id ? updated : x)));
       notify(p.active ? "Promotion paused" : "Promotion live on the landing");
     } catch {
@@ -102,7 +109,7 @@ export function PromosPanel({ notify }: { notify: (m: string, t?: "ok" | "err") 
 
   const remove = async (id: string) => {
     try {
-      await deletePromo(id);
+      await deleteAdminPromotion(id);
       setPromos((list) => (list || []).filter((x) => x.id !== id));
       notify("Promotion deleted");
     } catch {
@@ -111,7 +118,7 @@ export function PromosPanel({ notify }: { notify: (m: string, t?: "ok" | "err") 
     setConfirmDelete(null);
   };
 
-  const isLive = (p: PromoRow) => p.active && (!p.endsAt || new Date(p.endsAt).getTime() > Date.now());
+  const isLive = (p: PromoRow) => p.active && new Date(p.startsAt).getTime() <= Date.now() && new Date(p.endsAt).getTime() > Date.now();
 
   return (
     <div className="space-y-6">
@@ -144,12 +151,13 @@ export function PromosPanel({ notify }: { notify: (m: string, t?: "ok" | "err") 
             />
           </div>
           <div>
-            <label className="lbl">Ends at (optional)</label>
+            <label className="lbl">Ends at</label>
             <input
               className="field"
               type="datetime-local"
               value={endsAt}
               onChange={(e) => setEndsAt(e.target.value)}
+              required
             />
           </div>
           <div>
@@ -232,14 +240,12 @@ export function PromosPanel({ notify }: { notify: (m: string, t?: "ok" | "err") 
               </p>
               <p className="font-mono text-[11px] text-mist mt-1">
                 −{p.discountPercent}% ·{" "}
-                {p.endsAt
-                  ? `ends ${new Date(p.endsAt).toLocaleString("en-GB", {
+                {`ends ${new Date(p.endsAt).toLocaleString("en-GB", {
                       day: "2-digit",
                       month: "short",
                       hour: "2-digit",
                       minute: "2-digit",
-                    })}`
-                  : "no expiry"}
+                    })}`}
               </p>
             </div>
             <span

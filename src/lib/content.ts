@@ -58,11 +58,11 @@ export const defaultContent: Record<string, Localized> = {
   },
   "hero.subtitle": {
     "pt-BR":
-      "Jasper é um avatar 3D que conversa por voz em tempo real, enxerga sua tela, executa código e pilota 17 módulos de autonomia — 100% local, zero-trust e seu para sempre.",
+      "Jasper é um avatar 3D que conversa por voz em tempo real, analisa sua tela com consentimento e pilota 17 módulos de autonomia no Windows.",
     en:
-      "Jasper is a 3D avatar that talks in real time, sees your screen, runs code and pilots 17 autonomy modules — 100% local, zero-trust, and yours forever.",
+      "Jasper is a 3D avatar that talks in real time, analyzes your screen with consent, and runs 17 autonomy modules on Windows.",
     es:
-      "Jasper es un avatar 3D que conversa en tiempo real, ve tu pantalla, ejecuta código y pilota 17 módulos de autonomía — 100% local, zero-trust y tuyo para siempre.",
+      "Jasper es un avatar 3D que conversa en tiempo real, analiza tu pantalla con consentimiento y ejecuta 17 módulos de autonomía en Windows.",
   },
   "hero.cta": {
     "pt-BR": "GARANTIR ACESSO VITALÍCIO",
@@ -122,11 +122,11 @@ export const defaultContent: Record<string, Localized> = {
   },
   "security.body": {
     "pt-BR":
-      "Criptografia DPAPI para credenciais, firewall anti-SSRF em webhooks, sandbox para execução de código, redação automática de segredos e bloqueio de comandos de alto risco com autorização na tela. Profundidade de defesa em cada camada.",
+      "Criptografia DPAPI para credenciais, firewall anti-SSRF em webhooks, allowlists para automações locais, redação automática de segredos e bloqueio de comandos de alto risco com autorização na tela. Profundidade de defesa em cada camada.",
     en:
-      "DPAPI encryption for credentials, anti-SSRF firewall on webhooks, a sandbox for code execution, automatic secret redaction and on-screen approval for high-risk commands. Defense in depth at every layer.",
+      "DPAPI encryption for credentials, an anti-SSRF firewall on webhooks, allowlists for local automation, automatic secret redaction and on-screen approval for high-risk commands. Defense in depth at every layer.",
     es:
-      "Cifrado DPAPI para credenciales, firewall anti-SSRF en webhooks, sandbox para ejecución de código, redacción automática de secretos y aprobación en pantalla para comandos de alto riesgo. Defensa en profundidad en cada capa.",
+      "Cifrado DPAPI para credenciales, firewall anti-SSRF en webhooks, listas de permitidos para automatizaciones locales, redacción automática de secretos y aprobación en pantalla para comandos de alto riesgo. Defensa en profundidad en cada capa.",
   },
   "pricing.eyebrow": {
     "pt-BR": "Acesso vitalício",
@@ -152,9 +152,9 @@ export const defaultContent: Record<string, Localized> = {
     es: "ACTIVAR ACCESO DE POR VIDA",
   },
   "pricing.guarantee": {
-    "pt-BR": "Garantia de 14 dias · Atualizações incluídas · 1 licença por máquina",
-    en: "14-day guarantee · Updates included · 1 license per machine",
-    es: "Garantía de 14 días · Actualizaciones incluidas · 1 licencia por máquina",
+    "pt-BR": "Garantia de 7 dias · Atualizações incluídas · 1 licença por máquina",
+    en: "7-day guarantee · Updates included · 1 license per machine",
+    es: "Garantía de 7 días · Actualizaciones incluidas · 1 licencia por máquina",
   },
   "pricing.included.1": {
     "pt-BR": "Avatar 3D com lip-sync e 17 módulos de autonomia",
@@ -224,17 +224,17 @@ export const defaultSections: Record<string, boolean> = {
 };
 
 export const defaultMedia: Media = {
-  heroAvatar: "https://github.com/sAlly-19/jasper-avatar/blob/main/assets/screenshots/01_avatar_hud.png?raw=true",
-  hud: "https://github.com/sAlly-19/jasper-avatar/blob/main/assets/screenshots/02_autonomy_modules.png?raw=true",
+  heroAvatar: "/assets/screenshots/01_avatar_hud.png",
+  hud: "/assets/screenshots/02_autonomy_modules.png",
 };
 
 export const defaultPrices: Prices = {
-  BRL: 1990,
+  BRL: 497,
   USD: 149,
   EUR: 129,
-  BRL_original: 4990,
-  USD_original: 499,
-  EUR_original: 449,
+  BRL_original: 497,
+  USD_original: 149,
+  EUR_original: 129,
 };
 
 export const defaultFaq: FaqList = {
@@ -245,15 +245,15 @@ export const defaultFaq: FaqList = {
     },
     {
       q: "Preciso pagar por alguma API?",
-      a: "Apenas uma chave gratuita do Google Gemini via AI Studio. Todos os 17 módulos de autonomia rodam 100% localmente, sem custo adicional.",
+      a: "Uma chave do Google Gemini via AI Studio é necessária para a conversa por voz. Os módulos locais não exigem uma assinatura adicional do Jasper.",
     },
     {
       q: "Funciona sem internet?",
-      a: "O raciocínio avançado usa o Gemini via internet. Wake word, memória semântica, monitoramento de hardware e execução de código rodam localmente.",
+      a: "O raciocínio avançado usa o Gemini via internet. Wake word, memória semântica e monitoramento de hardware rodam localmente. A licença pode ficar até 72 horas sem nova verificação.",
     },
     {
       q: "Como recebo minha chave de acesso?",
-      a: "Após a ativação, você recebe por e-mail e WhatsApp uma chave JASPER-LT exclusiva para liberar o HUD na sua máquina.",
+      a: "Após a aprovação do pagamento, suas chaves aparecem na tela de confirmação. Cada chave libera o HUD em uma máquina.",
     },
   ],
   en: [
@@ -263,15 +263,15 @@ export const defaultFaq: FaqList = {
     },
     {
       q: "Do I need to pay for any API?",
-      a: "Only a free Google Gemini key via AI Studio. All 17 autonomy modules run 100% locally at no extra cost.",
+      a: "A Google Gemini key from AI Studio is required for voice conversations. Local modules do not require an additional Jasper subscription.",
     },
     {
       q: "Does it work offline?",
-      a: "Advanced reasoning uses Gemini over the internet. Wake word, semantic memory, hardware monitoring and code execution all run locally.",
+      a: "Advanced reasoning uses Gemini over the internet. Wake word, semantic memory and hardware monitoring run locally. The license can remain offline for up to 72 hours between checks.",
     },
     {
       q: "How do I get my access key?",
-      a: "After activation you receive a unique JASPER-LT key by email and WhatsApp to unlock the HUD on your machine.",
+      a: "After payment approval, your keys appear on the confirmation screen. Each key unlocks the HUD on one machine.",
     },
   ],
   es: [
@@ -281,15 +281,15 @@ export const defaultFaq: FaqList = {
     },
     {
       q: "¿Tengo que pagar por alguna API?",
-      a: "Solo una clave gratuita de Google Gemini vía AI Studio. Los 17 módulos de autonomía corren 100% en local, sin costo extra.",
+      a: "Se necesita una clave de Google Gemini de AI Studio para las conversaciones de voz. Los módulos locales no requieren otra suscripción de Jasper.",
     },
     {
       q: "¿Funciona sin internet?",
-      a: "El razonamiento avanzado usa Gemini por internet. Wake word, memoria semántica, monitorización de hardware y ejecución de código corren en local.",
+      a: "El razonamiento avanzado usa Gemini por internet. Wake word, memoria semántica y monitorización de hardware funcionan en local. La licencia puede permanecer hasta 72 horas sin una nueva verificación.",
     },
     {
       q: "¿Cómo recibo mi clave de acceso?",
-      a: "Tras la activación recibes por email y WhatsApp una clave JASPER-LT exclusiva para desbloquear el HUD en tu máquina.",
+      a: "Tras aprobarse el pago, tus claves aparecen en la pantalla de confirmación. Cada clave desbloquea el HUD en una máquina.",
     },
   ],
 };
@@ -379,11 +379,11 @@ export const MODULES: ModuleItem[] = [
   },
   {
     icon: "code",
-    name: { "pt-BR": "Code Interpreter", en: "Code Interpreter", es: "Code Interpreter" },
+    name: { "pt-BR": "Gerador de Relatórios", en: "Report Generator", es: "Generador de Informes" },
     desc: {
-      "pt-BR": "Python e Node em sandbox isolado.",
-      en: "Python and Node in an isolated sandbox.",
-      es: "Python y Node en un sandbox aislado.",
+      "pt-BR": "Cria documentos PDF, Word e planilhas localmente.",
+      en: "Creates PDF, Word, and spreadsheet documents locally.",
+      es: "Crea documentos PDF, Word y hojas de cálculo localmente.",
     },
   },
   {
