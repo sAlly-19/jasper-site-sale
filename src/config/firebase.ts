@@ -62,7 +62,7 @@ const db: Firestore = getFirestore(app);
 
 // Inicialização segura do Firebase Analytics (apenas em navegadores suportados)
 let analytics: Analytics | null = null;
-if (typeof window !== "undefined" && Platform.OS === "web") {
+if (typeof window !== "undefined" && Platform.OS === "web" && firebaseConfig.measurementId) {
   isSupported()
     .then((supported) => {
       if (supported) {
