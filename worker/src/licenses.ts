@@ -17,6 +17,17 @@ const heartbeatSchema = z.object({
   nonce: z.string().min(16).max(128).regex(/^[A-Za-z0-9._-]+$/),
 });
 
+export type ActivationDisposition = 'reject' | 'authenticate' | 'reactivate_same_machine';
+
+export function classifyActivation(existing: {
+  status: string;
+  installationId: string;
+  machineHash: string;
+}, requested: { installationId: string; machineHash: string }): ActivationDisposition {
+  if (existing.status !== 'active' || existing.machineHash !== requested.machineHash) return 'reject';
+  return existing.installationId === requested.installationId ? 'authenticate' : 'reactivate_same_machine';
+}
+
 async function createLease(env: Env, values: {
   licenseId: string;
   deviceId: string;
@@ -56,12 +67,56 @@ export async function activateLicense(request: Request, env: Env): Promise<Recor
   ).bind(license.id).first<{ id: string; installation_id: string; machine_hash: string; secret_hash: string; status: string }>();
 
   if (existing) {
-    if (existing.status !== 'active' || existing.installation_id !== parsed.data.installationId || existing.machine_hash !== parsed.data.machineHash) {
-      throw new HttpError(409, 'license_already_bound', 'Esta licença já está vinculada a outra instalação.');
+    const disposition = classifyActivation(
+      { status: existing.status, installationId: existing.installation_id, machineHash: existing.machine_hash },
+      { installationId: parsed.data.installationId, machineHash: parsed.data.machineHash },
+    );
+    if (disposition === 'reject') {
+      throw new HttpError(409, 'license_already_bound', 'Esta licença já está vinculada a outra máquina.');
     }
-    if (!parsed.data.deviceSecret) throw new HttpError(401, 'device_secret_required', 'Segredo do dispositivo obrigatório.');
-    const suppliedHash = await hmacHex(env.DEVICE_SECRET_PEPPER, parsed.data.deviceSecret);
-    if (!constantTimeEqual(existing.secret_hash, suppliedHash)) throw new HttpError(401, 'invalid_device_secret', 'Segredo do dispositivo inválido.');
+
+    const sameInstallation = disposition === 'authenticate';
+    const suppliedHash = parsed.data.deviceSecret
+      ? await hmacHex(env.DEVICE_SECRET_PEPPER, parsed.data.deviceSecret)
+      : null;
+    const authenticatedDevice = sameInstallation
+      && suppliedHash !== null
+      && constantTimeEqual(existing.secret_hash, suppliedHash);
+
+    if (sameInstallation && !authenticatedDevice) {
+      const code = parsed.data.deviceSecret ? 'invalid_device_secret' : 'device_secret_required';
+      const message = parsed.data.deviceSecret ? 'Segredo do dispositivo inválido.' : 'Segredo do dispositivo obrigatório.';
+      throw new HttpError(401, code, message);
+    }
+
+    if (!sameInstallation) {
+      const deviceSecret = randomToken();
+      const secretHash = await hmacHex(env.DEVICE_SECRET_PEPPER, deviceSecret);
+      const now = new Date().toISOString();
+      const [updatedDevice] = await env.DB.batch([
+        env.DB.prepare(
+          `UPDATE devices
+           SET installation_id = ?, secret_hash = ?, last_nonce = NULL, last_seen_at = ?, updated_at = ?
+           WHERE id = ? AND installation_id = ? AND machine_hash = ? AND status = 'active'`,
+        ).bind(parsed.data.installationId, secretHash, now, now, existing.id, existing.installation_id, parsed.data.machineHash),
+        env.DB.prepare(`DELETE FROM device_nonces WHERE device_id = ?`).bind(existing.id),
+        env.DB.prepare(
+          `INSERT INTO license_events (id, license_id, device_id, event_type, actor_type, actor_id, created_at)
+           VALUES (?, ?, ?, 'reactivated_same_machine', 'device', ?, ?)`,
+        ).bind(crypto.randomUUID(), license.id, existing.id, parsed.data.installationId, now),
+      ]);
+      if (Number(updatedDevice?.meta?.changes || 0) !== 1) {
+        throw new HttpError(409, 'activation_conflict', 'A licença foi reativada simultaneamente. Tente novamente.');
+      }
+      const lease = await createLease(env, {
+        licenseId: license.id,
+        deviceId: existing.id,
+        installationId: parsed.data.installationId,
+        machineHash: parsed.data.machineHash,
+      });
+      return { status: 'active', deviceId: existing.id, deviceSecret, lease, reactivated: true };
+    }
+
     const lease = await createLease(env, {
       licenseId: license.id,
       deviceId: existing.id,
