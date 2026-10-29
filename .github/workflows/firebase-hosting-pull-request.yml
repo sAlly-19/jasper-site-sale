@@ -38,6 +38,7 @@ jobs:
       - run: npm ci
       - run: npm ci
         working-directory: worker
+      - run: node --test test/dependency-compat.test.mjs
       - run: npm run typecheck
       - run: npm run typecheck
         working-directory: worker

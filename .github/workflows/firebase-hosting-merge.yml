@@ -24,6 +24,7 @@ jobs:
           cache: npm
       - run: npm run scan:secrets
       - run: npm ci
+      - run: node --test test/dependency-compat.test.mjs
       - run: npm run typecheck
       - run: npm run audit:runtime
       - run: npm run build:web

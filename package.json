@@ -66,6 +66,12 @@
     },
     "xcode": {
       "uuid": "11.1.1"
+    },
+    "@firebase/firestore": {
+      "@grpc/grpc-js": "1.14.6"
+    },
+    "@expo/cli": {
+      "zod": "4.6.7"
     }
   },
   "private": true
