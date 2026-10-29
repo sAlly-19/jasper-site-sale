@@ -18,5 +18,7 @@ test('privacy is a public static document with contact, data disclosures and a h
 
 test('Firebase resolves the extensionless privacy URL as static HTML', () => {
   const config = JSON.parse(fs.readFileSync('firebase.json', 'utf8'));
-  assert.equal(config.hosting.cleanUrls, true, '/privacidade must serve privacidade.html before the SPA fallback');
+  const index = config.hosting.rewrites.findIndex(rule => rule.source === '/privacidade' && rule.destination === '/privacidade.html');
+  const fallback = config.hosting.rewrites.findIndex(rule => rule.source === '**');
+  assert.ok(config.hosting.cleanUrls === true || index >= 0 && index < fallback, '/privacidade must resolve before the SPA fallback');
 });

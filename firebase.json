@@ -4,13 +4,21 @@
   },
   "hosting": {
     "public": "dist",
-    "cleanUrls": true,
+    "cleanUrls": false,
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/privacidade",
+        "destination": "/privacidade.html"
+      },
+      {
+        "source": "/_sitemap",
+        "destination": "/_sitemap.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"
