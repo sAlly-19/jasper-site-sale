@@ -66,3 +66,18 @@ npm test
 Antes de qualquer deploy, substitua todos os placeholders de `[env.production]` em [`worker/wrangler.toml`](./worker/wrangler.toml), crie o D1 Free, configure os secrets com `wrangler secret put`, aplique a migration e cadastre o UID administrativo. O webhook do Mercado Pago deve apontar para `/v1/webhooks/mercado-pago`.
 
 Nenhum script de configuração deste repositório faz deploy automaticamente. As chaves completas de licença são exibidas apenas na entrega do pedido aprovado ou no instante de uma emissão administrativa.
+
+## Política de privacidade
+
+A rota pública /privacidade é exportada como HTML estático e tem link no rodapé da homepage. O conteúdo está em app/privacidade.tsx. Antes de informar a URL no Google OAuth, publique a versão atual e confira o acesso sem login.
+
+Verificação local (sem deploy):
+
+```powershell
+npm run typecheck
+npm run build:web
+node --test test/privacy-page.test.mjs
+node test/privacy-page.browser.mjs
+```
+
+O teste de navegador usa Chrome instalado via playwright-core, bloqueia rede externa e verifica desktop/celular sem JavaScript. O plano e as evidências resumidas estão em docs/2026-10-29-privacy-page.md.

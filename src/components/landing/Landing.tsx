@@ -1157,6 +1157,9 @@ export function Landing({ data: initialData }: { data?: LandingData }) {
             </div>
           </div>
           <div className="flex items-center gap-5">
+            <a href="/privacidade" className="text-xs text-mist hover:text-neon underline underline-offset-4">
+              {locale === "en" ? "Privacy Policy" : locale === "es" ? "Política de Privacidad" : "Política de Privacidade"}
+            </a>
             <LanguageSwitcher locale={locale} onLocale={setLocale} size="sm" />
             <span className="font-mono text-[10px] text-mist/50">© 2026 JASPER AVATAR</span>
           </div>
